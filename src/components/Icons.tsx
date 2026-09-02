@@ -247,6 +247,16 @@ export function IconEyeOff({ size = defaultSize, color = "currentColor" }: IconP
   );
 }
 
+export function IconSignOut({ size = defaultSize, color = "currentColor" }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M12.5 3H6.5C5.4 3 4.5 3.9 4.5 5V15C4.5 16.1 5.4 17 6.5 17H12.5" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M9 10H17" stroke={color} strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M14 7L17 10L14 13" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
 export function IconLogoBrand({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 28 28" fill="none">

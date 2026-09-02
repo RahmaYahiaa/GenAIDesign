@@ -1,5 +1,7 @@
 // Design tokens — GenAI Academic Intelligence Platform
-// Refined semantic color system: teal / warm gold / dusty rose — no traffic-light colors
+// Unified cobalt-blue identity derived from the login screen palette.
+// No traffic-light colors (red / yellow / green) — mastery signals are
+// expressed through a single blue→violet ladder with clear lightness steps.
 
 export const MONO = "'JetBrains Mono', monospace";
 export const HEAD_EN = "'Plus Jakarta Sans', sans-serif";
@@ -18,41 +20,41 @@ export const LIGHT = {
   primary: "#1B4DA8",
   primaryMid: "#1E5BB5",
   primaryLight: "#EBF1FB",
-  accent: "#0E7A9E",
+  accent: "#3057CC",
 
   textPrimary: "#0D1A2E",
   textSecondary: "#374151",
   textMuted: "#5C697E",
   textFaint: "#8A96A8",
 
-  // Refined semantic — teal / gold / rose (NOT traffic-light red/yellow/green)
-  mastered: "#0D9488",        // Teal
-  masteredMid: "#0F9E92",
-  masteredBg: "#F0FDFA",
-  masteredBorder: "#CCFBF1",
+  // Unified blue ladder (login palette) — no yellow / green / red
+  mastered: "#1A56C4",        // Vivid cobalt — mastered
+  masteredMid: "#1F63D0",
+  masteredBg: "#EBF2FD",
+  masteredBorder: "#C7D9F9",
 
-  advanced: "#1D7A6B",        // Deeper teal for 'advanced near mastery'
-  advancedBg: "#E8FAF6",
+  advanced: "#3A6FDB",        // Mid blue — advanced near mastery
+  advancedBg: "#EEF4FE",
 
-  developing: "#92680B",      // Warm muted gold
-  developingBg: "#FDF7EB",
-  developingBorder: "#F5DFA0",
+  developing: "#7398E4",      // Soft periwinkle — developing
+  developingBg: "#F3F7FE",
+  developingBorder: "#D8E4FB",
 
-  gap: "#A0435A",             // Dusty rose — learning gap
-  gapBg: "#FEF1F4",
-  gapBorder: "#F9CAD5",
+  gap: "#7059C9",             // Deep violet — flags attention (no red)
+  gapBg: "#F3F1FC",
+  gapBorder: "#DDD6F7",
 
-  noEvidence: "#5C697E",      // Slate — no data yet
+  noEvidence: "#8A96A8",      // Slate — no data yet
   noEvidenceBg: "#F1F3F7",
 
   citation: "#1B4DA8",        // Cobalt — same as primary
   citationBg: "#EBF1FB",
   citationBorder: "#C3D4F5",
 
-  grounded: "#0D9488",        // Grounded AI response
-  groundedBg: "#F0FDFA",
-  insufficient: "#92680B",    // Insufficient evidence
-  insufficientBg: "#FDF7EB",
+  grounded: "#1A56C4",        // Grounded AI response
+  groundedBg: "#EBF2FD",
+  insufficient: "#7398E4",    // Insufficient evidence
+  insufficientBg: "#F3F7FE",
 
   sidebar: "#FFFFFF",
   sidebarBorder: "#DDE3ED",
@@ -61,55 +63,55 @@ export const LIGHT = {
 };
 
 export const DARK = {
-  bg: "#0C1220",              // Deep navy — not pure black
-  bgAlt: "#101828",
-  card: "#131E30",
-  cardBorder: "#1E2D45",
-  inset: "#172035",
-  insetBorder: "#1E2D45",
+  bg: "#0A0E23",              // Deep indigo night — not pure black
+  bgAlt: "#0E1430",
+  card: "#131A38",
+  cardBorder: "#242E5C",
+  inset: "#161E42",
+  insetBorder: "#2B3666",
 
-  primary: "#4B8CF5",
-  primaryMid: "#5C9BF7",
-  primaryLight: "#172035",
-  accent: "#38BDF8",
+  primary: "#7D9BF6",
+  primaryMid: "#8FA9F8",
+  primaryLight: "#1A2248",
+  accent: "#A18CFF",          // Soft violet accent
 
   textPrimary: "#EDF0F5",
   textSecondary: "#B8C4D6",
   textMuted: "#7A8DA8",
   textFaint: "#4A5A72",
 
-  mastered: "#2DD4BF",
-  masteredMid: "#2ECFC0",
-  masteredBg: "#0C2420",
-  masteredBorder: "#134034",
+  mastered: "#6E9BFF",        // Electric blue — mastered
+  masteredMid: "#7FA9FF",
+  masteredBg: "#101A3C",
+  masteredBorder: "#24356E",
 
-  advanced: "#26B5A3",
-  advancedBg: "#0D2220",
+  advanced: "#90A9F2",        // Light blue — advanced
+  advancedBg: "#131D42",
 
-  developing: "#C8963A",
-  developingBg: "#1E1A0C",
-  developingBorder: "#3D3010",
+  developing: "#A9BAF1",      // Pale periwinkle — developing
+  developingBg: "#1A2148",
+  developingBorder: "#2F3B74",
 
-  gap: "#D07090",
-  gapBg: "#1E0C14",
-  gapBorder: "#3D1824",
+  gap: "#A79AEF",             // Lavender-violet — flags attention
+  gapBg: "#1F1A45",
+  gapBorder: "#382E74",
 
-  noEvidence: "#4A5A72",
-  noEvidenceBg: "#131E30",
+  noEvidence: "#5A6683",      // Slate — no data yet
+  noEvidenceBg: "#131A38",
 
-  citation: "#4B8CF5",
-  citationBg: "#172035",
-  citationBorder: "#1E3558",
+  citation: "#7D9BF6",
+  citationBg: "#1A2248",
+  citationBorder: "#2B3B78",
 
-  grounded: "#2DD4BF",
-  groundedBg: "#0C2420",
-  insufficient: "#C8963A",
-  insufficientBg: "#1E1A0C",
+  grounded: "#6E9BFF",
+  groundedBg: "#101A3C",
+  insufficient: "#A9BAF1",
+  insufficientBg: "#1A2148",
 
-  sidebar: "#101828",
-  sidebarBorder: "#1E2D45",
-  sidebarActive: "#172035",
-  sidebarHover: "#131E30",
+  sidebar: "#0E1430",
+  sidebarBorder: "#242E5C",
+  sidebarActive: "#1A2248",
+  sidebarHover: "#131A38",
 };
 
 export type Tokens = typeof LIGHT;

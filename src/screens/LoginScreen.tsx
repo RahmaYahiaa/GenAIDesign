@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppState } from "../components/AppShell";
-import { tk, MONO, masteryColor, masteryBg, masteryLevel, masteryLevelLabel, MasteryLevel } from "../tokens";
+import { tk, MONO, masteryLevel, masteryLevelLabel, MasteryLevel } from "../tokens";
 import { IconLogoBrand, IconLock, IconEye, IconEyeOff } from "../components/Icons";
 
 interface Props { state: AppState; setState: (s: AppState) => void; }
@@ -21,6 +21,16 @@ const LEVEL_STEPS: { level: MasteryLevel; en: string; ar: string }[] = [
   { level: "advanced", en: "Advanced", ar: "متقدم" },
   { level: "mastered", en: "Mastered", ar: "متقن" },
 ];
+
+// Hero ladder colors — luminous blue/violet variants that contrast on the
+// cobalt gradient (kept in the same identity, no traffic-light colors).
+const HERO_LEVEL_COLORS: Record<MasteryLevel, string> = {
+  "no-evidence": "#93A0B8",
+  "beginner": "#B9A6F5",
+  "intermediate": "#A9BAF1",
+  "advanced": "#90A9F2",
+  "mastered": "#7FB2FF",
+};
 
 export default function LoginScreen({ state, setState }: Props) {
   const tokens = tk(state.dark);
@@ -52,7 +62,7 @@ export default function LoginScreen({ state, setState }: Props) {
         style={{
           flex: "0 0 58%",
           background: state.dark
-            ? "linear-gradient(160deg, #0C1220 0%, #101828 60%, #0E1B2E 100%)"
+            ? "linear-gradient(160deg, #0A0E23 0%, #131A38 60%, #1F1A45 100%)"
             : "linear-gradient(160deg, #1B4DA8 0%, #1a5298 55%, #0E7A9E 100%)",
           padding: "52px 60px",
           display: "flex",
@@ -126,8 +136,8 @@ export default function LoginScreen({ state, setState }: Props) {
           {/* Mastery Ladder */}
           <div
             style={{
-              background: state.dark ? "rgba(16,24,40,0.85)" : "rgba(0,0,0,0.2)",
-              border: state.dark ? "1px solid #1E2D45" : "1px solid rgba(255,255,255,0.18)",
+              background: state.dark ? "rgba(14,20,48,0.85)" : "rgba(0,0,0,0.2)",
+              border: state.dark ? "1px solid #242E5C" : "1px solid rgba(255,255,255,0.18)",
               borderRadius: 16,
               padding: "22px 24px",
               backdropFilter: "blur(16px)",
@@ -145,10 +155,7 @@ export default function LoginScreen({ state, setState }: Props) {
             {/* Level legend */}
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               {LEVEL_STEPS.map((step) => {
-                const color = masteryColor(step.level, state.dark ? {
-                  ...tk(true), noEvidence: "#4A5A72", gap: "#D07090", developing: "#C8963A",
-                  advanced: "#26B5A3", mastered: "#2DD4BF"
-                } as any : tk(false));
+                const color = HERO_LEVEL_COLORS[step.level];
                 return (
                   <div key={step.level} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <div style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />
@@ -162,9 +169,8 @@ export default function LoginScreen({ state, setState }: Props) {
 
             {/* Topic rows */}
             {LADDER_TOPICS.map((topic) => {
-              const tks = tk(state.dark);
               const level = masteryLevel(topic.pct, topic.evidence > 0);
-              const color = masteryColor(level, tks);
+              const color = HERO_LEVEL_COLORS[level];
               return (
                 <div key={topic.label} style={{ marginBottom: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
@@ -188,7 +194,7 @@ export default function LoginScreen({ state, setState }: Props) {
                         ? false
                         : topic.pct > stepThresholds[si];
                       const isActive = masteryLevel(topic.pct, topic.evidence > 0) === step.level;
-                      const c = masteryColor(step.level, tks);
+                      const c = HERO_LEVEL_COLORS[step.level];
                       return (
                         <div
                           key={step.level}
@@ -224,7 +230,7 @@ export default function LoginScreen({ state, setState }: Props) {
               <span style={{ fontFamily: MONO, fontSize: 10, color: "rgba(255,255,255,0.45)" }}>
                 Overall course mastery
               </span>
-              <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: "#2DD4BF" }}>
+              <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: "#8FB4FF" }}>
                 46%
               </span>
             </div>

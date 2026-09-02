@@ -284,7 +284,7 @@ def insert(table, key, value, size):
 
                   {/* Code block */}
                   {msg.code && (
-                    <div style={{ marginTop: 12, background: state.dark ? "#0C1220" : "#EEF1F7", border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
+                    <div style={{ marginTop: 12, background: state.dark ? "#0A0E23" : "#EEF1F7", border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, overflow: "hidden" }}>
                       <div style={{ padding: "5px 12px", borderBottom: `1px solid ${tokens.cardBorder}`, display: "flex", alignItems: "center", gap: 6 }}>
                         <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{msg.code.lang}</span>
                       </div>

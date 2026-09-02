@@ -1,8 +1,8 @@
-import { Tokens, MONO } from "../tokens";
+import { Tokens, MONO, tk } from "../tokens";
 import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
-  IconSun, IconMoon, IconGlobe, IconBell,
+  IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
 } from "./Icons";
 
 type Screen =
@@ -55,7 +55,7 @@ function Tooltip({ label, children, side = "right" }: { label: string; children:
           [side === "right" ? "left" : "right"]: "calc(100% + 8px)",
           top: "50%",
           transform: "translateY(-50%)",
-          background: "#0D1A2E",
+          background: "#131A38",
           color: "#EDF0F5",
           fontSize: 12,
           fontFamily: "'Inter', sans-serif",
@@ -82,17 +82,18 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const SIDEBAR_W = 220;
   const TOPBAR_H = 44;
 
-  // Tokens inline for shell
-  const bg = dark ? "#0C1220" : "#F4F6F9";
-  const sidebarBg = dark ? "#101828" : "#FFFFFF";
-  const sidebarBorder = dark ? "#1E2D45" : "#DDE3ED";
-  const sidebarActive = dark ? "#172035" : "#EBF1FB";
-  const sidebarHover = dark ? "#131E30" : "#F4F6F9";
-  const primary = dark ? "#4B8CF5" : "#1B4DA8";
-  const textPrimary = dark ? "#EDF0F5" : "#0D1A2E";
-  const textMuted = dark ? "#7A8DA8" : "#5C697E";
-  const cardBorder = dark ? "#1E2D45" : "#DDE3ED";
-  const topbarBg = dark ? "rgba(12,18,32,0.95)" : "rgba(244,246,249,0.95)";
+  // Tokens — single source of truth (login cobalt-blue palette)
+  const T = tk(dark);
+  const bg = T.bg;
+  const sidebarBg = T.sidebar;
+  const sidebarBorder = T.sidebarBorder;
+  const sidebarActive = T.sidebarActive;
+  const sidebarHover = T.sidebarHover;
+  const primary = T.primary;
+  const textPrimary = T.textPrimary;
+  const textMuted = T.textMuted;
+  const cardBorder = T.cardBorder;
+  const topbarBg = dark ? "rgba(10,14,35,0.95)" : "rgba(244,246,249,0.95)";
 
   const nav = role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
   const navBottom = role === "student" ? STUDENT_NAV_BOTTOM : [];
@@ -371,18 +372,19 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
             {dark ? <IconSun size={15} color={textMuted} /> : <IconMoon size={15} color={textMuted} />}
           </button>
 
-          {/* Show login/register for quick demo access */}
-          <div style={{ width: 1, height: 20, background: cardBorder, margin: "0 4px" }} />
+          {/* Sign out — icon only */}
           <button
             onClick={() => setState({ ...state, screen: "login" })}
+            title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
+            aria-label={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
             style={{
-              padding: "4px 10px", borderRadius: 6,
+              width: 32, height: 32, borderRadius: 8,
               border: `1px solid ${cardBorder}`, background: "transparent",
-              fontFamily: MONO, fontSize: 10, color: textMuted,
-              cursor: "pointer", letterSpacing: "0.04em",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: textMuted,
             }}
           >
-            {lang === "ar" ? "تسجيل خروج" : "SIGN OUT"}
+            <IconSignOut size={15} color={textMuted} />
           </button>
         </header>
 
@@ -412,12 +414,13 @@ interface AuthShellProps {
 export function AuthShell({ state, setState, children }: AuthShellProps) {
   const dark = state.dark;
   const lang = state.lang;
-  const textMuted = dark ? "#7A8DA8" : "#5C697E";
-  const cardBorder = dark ? "#1E2D45" : "#DDE3ED";
-  const topbarBg = dark ? "rgba(12,18,32,0.98)" : "rgba(244,246,249,0.98)";
+  const T = tk(dark);
+  const textMuted = T.textMuted;
+  const cardBorder = T.cardBorder;
+  const topbarBg = dark ? "rgba(10,14,35,0.98)" : "rgba(244,246,249,0.98)";
 
   return (
-    <div style={{ minHeight: "100vh", background: dark ? "#0C1220" : "#F4F6F9", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: T.bg, display: "flex", flexDirection: "column" }}>
       {/* Minimal top bar */}
       <header
         style={{
@@ -437,7 +440,7 @@ export function AuthShell({ state, setState, children }: AuthShellProps) {
               fontFamily: "'Plus Jakarta Sans', sans-serif",
               fontWeight: 800,
               fontSize: 14,
-              color: dark ? "#4B8CF5" : "#1B4DA8",
+              color: dark ? T.primary : "#1B4DA8",
               letterSpacing: "-0.03em",
             }}
           >

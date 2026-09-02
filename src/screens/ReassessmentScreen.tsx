@@ -67,7 +67,7 @@ export default function ReassessmentScreen({ state, setState }: Props) {
       {/* Hero comparison */}
       <div
         style={{
-          background: state.dark ? "linear-gradient(135deg, #101828, #131E30)" : "linear-gradient(135deg, #EEF1F7, #F0FDFA)",
+          background: state.dark ? "linear-gradient(135deg, #0E1430, #131A38)" : "linear-gradient(135deg, #EEF1F7, #EBF2FD)",
           border: `1.5px solid ${tokens.cardBorder}`,
           borderRadius: 16,
           padding: "28px 32px",

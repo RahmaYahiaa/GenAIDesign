@@ -33,7 +33,7 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
         style={{
           flex: "0 0 58%",
           background: state.dark
-            ? "linear-gradient(160deg, #0C1220 0%, #101828 60%, #0E1B2E 100%)"
+            ? "linear-gradient(160deg, #0A0E23 0%, #131A38 60%, #1F1A45 100%)"
             : "linear-gradient(160deg, #1B4DA8 0%, #1a5298 55%, #0E7A9E 100%)",
           padding: "52px 60px",
           display: "flex", flexDirection: "column", justifyContent: "center",
@@ -64,7 +64,7 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
             { label: "Provable Growth", desc: "Before/after mastery scores with full evidence trail" },
           ].map((f) => (
             <div key={f.label} style={{ display: "flex", gap: 12, marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 9 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#2DD4BF", marginTop: 6, flexShrink: 0 }} />
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#7FB2FF", marginTop: 6, flexShrink: 0 }} />
               <div>
                 <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13, color: "white", marginBottom: 1 }}>{f.label}</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{f.desc}</div>
