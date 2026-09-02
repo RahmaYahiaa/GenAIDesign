@@ -1,0 +1,482 @@
+import { Tokens, MONO } from "../tokens";
+import {
+  IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
+  IconDiagnostic, IconPractice, IconReassessment, IconProfile,
+  IconSun, IconMoon, IconGlobe, IconBell,
+} from "./Icons";
+
+type Screen =
+  | "student-dashboard" | "courses" | "mastery" | "tutor"
+  | "diagnostic" | "practice" | "reassessment" | "profile" | "instructor";
+
+export type { Screen };
+
+interface AppState {
+  screen: Screen | "login" | "register";
+  dark: boolean;
+  lang: "en" | "ar";
+}
+
+export type { AppState };
+
+const STUDENT_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { id: "student-dashboard", labelEn: "Dashboard", labelAr: "لوحة التحكم", Icon: IconDashboard },
+  { id: "courses", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
+  { id: "mastery", labelEn: "Topics & Mastery", labelAr: "المواضيع والإتقان", Icon: IconMastery },
+  { id: "tutor", labelEn: "AI Tutor", labelAr: "المعلم الذكي", Icon: IconTutor },
+  { id: "diagnostic", labelEn: "Diagnostic", labelAr: "التشخيص", Icon: IconDiagnostic },
+  { id: "practice", labelEn: "Practice", labelAr: "التدريب", Icon: IconPractice },
+  { id: "reassessment", labelEn: "Reassessment", labelAr: "إعادة التقييم", Icon: IconReassessment },
+];
+
+const STUDENT_NAV_BOTTOM: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { id: "profile", labelEn: "Profile", labelAr: "الملف الشخصي", Icon: IconProfile },
+];
+
+const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { id: "instructor", labelEn: "Analytics", labelAr: "التحليلات", Icon: IconDashboard },
+];
+
+interface AppShellProps {
+  state: AppState;
+  setState: (s: AppState) => void;
+  children: React.ReactNode;
+  role?: "student" | "instructor";
+}
+
+function Tooltip({ label, children, side = "right" }: { label: string; children: React.ReactNode; side?: "right" | "left" }) {
+  return (
+    <div style={{ position: "relative", display: "flex" }} className="tooltip-trigger">
+      {children}
+      <div
+        className="tooltip-box"
+        style={{
+          position: "absolute",
+          [side === "right" ? "left" : "right"]: "calc(100% + 8px)",
+          top: "50%",
+          transform: "translateY(-50%)",
+          background: "#0D1A2E",
+          color: "#EDF0F5",
+          fontSize: 12,
+          fontFamily: "'Inter', sans-serif",
+          padding: "4px 10px",
+          borderRadius: 6,
+          whiteSpace: "nowrap",
+          pointerEvents: "none",
+          opacity: 0,
+          transition: "opacity 150ms ease",
+          zIndex: 200,
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  );
+}
+
+export function AppShell({ state, setState, children, role = "student" }: AppShellProps) {
+  const dark = state.dark;
+  const lang = state.lang;
+  const isRtl = lang === "ar";
+
+  const SIDEBAR_W = 220;
+  const TOPBAR_H = 44;
+
+  // Tokens inline for shell
+  const bg = dark ? "#0C1220" : "#F4F6F9";
+  const sidebarBg = dark ? "#101828" : "#FFFFFF";
+  const sidebarBorder = dark ? "#1E2D45" : "#DDE3ED";
+  const sidebarActive = dark ? "#172035" : "#EBF1FB";
+  const sidebarHover = dark ? "#131E30" : "#F4F6F9";
+  const primary = dark ? "#4B8CF5" : "#1B4DA8";
+  const textPrimary = dark ? "#EDF0F5" : "#0D1A2E";
+  const textMuted = dark ? "#7A8DA8" : "#5C697E";
+  const cardBorder = dark ? "#1E2D45" : "#DDE3ED";
+  const topbarBg = dark ? "rgba(12,18,32,0.95)" : "rgba(244,246,249,0.95)";
+
+  const nav = role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
+  const navBottom = role === "student" ? STUDENT_NAV_BOTTOM : [];
+  const activeScreen = state.screen as Screen;
+
+  const navItem = (item: typeof STUDENT_NAV[0]) => {
+    const isActive = activeScreen === item.id;
+    const label = lang === "ar" ? item.labelAr : item.labelEn;
+    return (
+      <button
+        key={item.id}
+        onClick={() => setState({ ...state, screen: item.id })}
+        title={label}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          width: "100%",
+          padding: "9px 14px",
+          borderRadius: 8,
+          border: "none",
+          background: isActive ? sidebarActive : "transparent",
+          color: isActive ? primary : textMuted,
+          cursor: "pointer",
+          textAlign: isRtl ? "right" : "left",
+          flexDirection: isRtl ? "row-reverse" : "row",
+          transition: "background 120ms ease, color 120ms ease",
+        }}
+        onMouseEnter={(e) => {
+          if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = sidebarHover;
+        }}
+        onMouseLeave={(e) => {
+          if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+        }}
+      >
+        <item.Icon size={17} color={isActive ? primary : textMuted} />
+        <span
+          style={{
+            fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif",
+            fontSize: 13,
+            fontWeight: isActive ? 600 : 400,
+            letterSpacing: isActive ? "-0.01em" : "0",
+          }}
+        >
+          {label}
+        </span>
+        {isActive && (
+          <div
+            style={{
+              marginLeft: isRtl ? 0 : "auto",
+              marginRight: isRtl ? "auto" : 0,
+              width: 4,
+              height: 4,
+              borderRadius: "50%",
+              background: primary,
+            }}
+          />
+        )}
+      </button>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        background: bg,
+        color: textPrimary,
+        overflow: "hidden",
+        direction: isRtl ? "rtl" : "ltr",
+        fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif",
+      }}
+    >
+      {/* ── Sidebar ─────────────────────────────────────────── */}
+      <aside
+        style={{
+          width: SIDEBAR_W,
+          flexShrink: 0,
+          background: sidebarBg,
+          borderRight: isRtl ? "none" : `1px solid ${sidebarBorder}`,
+          borderLeft: isRtl ? `1px solid ${sidebarBorder}` : "none",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          overflow: "hidden",
+          transition: "background 200ms ease",
+        }}
+      >
+        {/* Logo */}
+        <div
+          style={{
+            padding: "18px 16px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            borderBottom: `1px solid ${sidebarBorder}`,
+            flexDirection: isRtl ? "row-reverse" : "row",
+          }}
+        >
+          <IconLogoBrand size={26} />
+          <div>
+            <div
+              style={{
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: 800,
+                fontSize: 15,
+                color: primary,
+                letterSpacing: "-0.03em",
+              }}
+            >
+              GenAI
+            </div>
+            <div
+              style={{
+                fontFamily: MONO,
+                fontSize: 9,
+                color: textMuted,
+                letterSpacing: "0.04em",
+              }}
+            >
+              ACADEMIC INTELLIGENCE
+            </div>
+          </div>
+        </div>
+
+        {/* Role badge */}
+        <div style={{ padding: "10px 14px 6px" }}>
+          <div
+            style={{
+              fontFamily: MONO,
+              fontSize: 9,
+              color: textMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: 6,
+              textAlign: isRtl ? "right" : "left",
+            }}
+          >
+            {lang === "ar" ? (role === "student" ? "طالب" : "مدرس") : role === "student" ? "STUDENT" : "INSTRUCTOR"}
+          </div>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{ flex: 1, padding: "0 8px", overflowY: "auto" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {nav.map((item) => navItem(item))}
+          </div>
+        </nav>
+
+        {/* Bottom nav */}
+        {navBottom.length > 0 && (
+          <div
+            style={{
+              padding: "8px",
+              borderTop: `1px solid ${sidebarBorder}`,
+            }}
+          >
+            {navBottom.map((item) => navItem(item))}
+          </div>
+        )}
+
+        {/* User stub */}
+        <div
+          style={{
+            padding: "12px 14px",
+            borderTop: `1px solid ${sidebarBorder}`,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            flexDirection: isRtl ? "row-reverse" : "row",
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              background: `${primary}18`,
+              border: `1.5px solid ${primary}44`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: 700,
+              fontSize: 12,
+              color: primary,
+              flexShrink: 0,
+            }}
+          >
+            SA
+          </div>
+          <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: textPrimary, fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi"}
+            </div>
+            <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>CS301 · CS302</div>
+          </div>
+        </div>
+      </aside>
+
+      {/* ── Main area ───────────────────────────────────────── */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Top bar */}
+        <header
+          style={{
+            height: TOPBAR_H,
+            background: topbarBg,
+            backdropFilter: "blur(12px)",
+            borderBottom: `1px solid ${cardBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            padding: "0 20px",
+            gap: 4,
+            flexShrink: 0,
+            flexDirection: isRtl ? "row-reverse" : "row",
+          }}
+        >
+          {/* Screen switcher for instructor */}
+          {role === "instructor" && (
+            <div style={{ flex: 1 }}>
+              <span style={{ fontFamily: MONO, fontSize: 11, color: textMuted }}>
+                {lang === "ar" ? "لوحة تحكم المدرس — CS301" : "Instructor Dashboard — CS301"}
+              </span>
+            </div>
+          )}
+
+          {/* Screen nav label */}
+          {role === "student" && (
+            <div style={{ flex: 1, textAlign: isRtl ? "right" : "left" }}>
+              <span style={{ fontFamily: MONO, fontSize: 11, color: textMuted }}>
+                CS301 · {lang === "ar" ? "الأسبوع 9" : "Week 9"}
+              </span>
+            </div>
+          )}
+
+          {/* Notification icon */}
+          <button
+            title={lang === "ar" ? "الإشعارات" : "Notifications"}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: `1px solid ${cardBorder}`, background: "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: textMuted,
+            }}
+          >
+            <IconBell size={15} color={textMuted} />
+          </button>
+
+          {/* Language toggle */}
+          <button
+            onClick={() => setState({ ...state, lang: lang === "en" ? "ar" : "en" })}
+            title={lang === "en" ? "Arabic" : "English"}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: `1px solid ${cardBorder}`, background: "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: textMuted,
+            }}
+          >
+            <IconGlobe size={15} color={textMuted} />
+          </button>
+
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setState({ ...state, dark: !dark })}
+            title={dark ? (lang === "ar" ? "الوضع النهاري" : "Light Mode") : (lang === "ar" ? "الوضع الليلي" : "Dark Mode")}
+            style={{
+              width: 32, height: 32, borderRadius: 8,
+              border: `1px solid ${cardBorder}`, background: "transparent",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: textMuted,
+            }}
+          >
+            {dark ? <IconSun size={15} color={textMuted} /> : <IconMoon size={15} color={textMuted} />}
+          </button>
+
+          {/* Show login/register for quick demo access */}
+          <div style={{ width: 1, height: 20, background: cardBorder, margin: "0 4px" }} />
+          <button
+            onClick={() => setState({ ...state, screen: "login" })}
+            style={{
+              padding: "4px 10px", borderRadius: 6,
+              border: `1px solid ${cardBorder}`, background: "transparent",
+              fontFamily: MONO, fontSize: 10, color: textMuted,
+              cursor: "pointer", letterSpacing: "0.04em",
+            }}
+          >
+            {lang === "ar" ? "تسجيل خروج" : "SIGN OUT"}
+          </button>
+        </header>
+
+        {/* Page content */}
+        <main
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            background: bg,
+            direction: isRtl ? "rtl" : "ltr",
+            transition: "background 200ms ease",
+          }}
+        >
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// ─── Auth Shell (for login/register — no sidebar) ─────────────────────────────
+interface AuthShellProps {
+  state: AppState;
+  setState: (s: AppState) => void;
+  children: React.ReactNode;
+}
+export function AuthShell({ state, setState, children }: AuthShellProps) {
+  const dark = state.dark;
+  const lang = state.lang;
+  const textMuted = dark ? "#7A8DA8" : "#5C697E";
+  const cardBorder = dark ? "#1E2D45" : "#DDE3ED";
+  const topbarBg = dark ? "rgba(12,18,32,0.98)" : "rgba(244,246,249,0.98)";
+
+  return (
+    <div style={{ minHeight: "100vh", background: dark ? "#0C1220" : "#F4F6F9", display: "flex", flexDirection: "column" }}>
+      {/* Minimal top bar */}
+      <header
+        style={{
+          height: 44,
+          background: topbarBg,
+          borderBottom: `1px solid ${cardBorder}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <IconLogoBrand size={22} />
+          <span
+            style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontWeight: 800,
+              fontSize: 14,
+              color: dark ? "#4B8CF5" : "#1B4DA8",
+              letterSpacing: "-0.03em",
+            }}
+          >
+            GenAI
+          </span>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button
+            onClick={() => setState({ ...state, lang: lang === "en" ? "ar" : "en" })}
+            style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${cardBorder}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <IconGlobe size={14} color={textMuted} />
+          </button>
+          <button
+            onClick={() => setState({ ...state, dark: !dark })}
+            style={{ width: 30, height: 30, borderRadius: 7, border: `1px solid ${cardBorder}`, background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {dark ? <IconSun size={14} color={textMuted} /> : <IconMoon size={14} color={textMuted} />}
+          </button>
+
+          {/* Demo navigation */}
+          <div style={{ width: 1, height: 20, background: cardBorder, margin: "5px 4px" }} />
+          {(["student-dashboard", "instructor"] as Screen[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setState({ ...state, screen: s })}
+              style={{
+                padding: "4px 10px", borderRadius: 6,
+                border: `1px solid ${cardBorder}`, background: "transparent",
+                fontFamily: MONO, fontSize: 10, color: textMuted,
+                cursor: "pointer", letterSpacing: "0.04em",
+              }}
+            >
+              {s === "student-dashboard" ? "STUDENT" : "INSTRUCTOR"}
+            </button>
+          ))}
+        </div>
+      </header>
+      {children}
+    </div>
+  );
+}

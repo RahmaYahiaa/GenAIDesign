@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scoped transitions — avoid animating everything which causes layout jank */
+button, a, input, select, textarea {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 130ms;
+  transition-timing-function: ease;
+}
+
+/* Page content transitions */
+main > * {
+  animation: fadeIn 200ms ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrollbar — hidden until hover */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.4); }
+
+/* Tooltip hover */
+.tooltip-trigger:hover .tooltip-box {
+  opacity: 1 !important;
+}
+
+/* Focus ring — consistent across all interactive elements */
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline: 2px solid #1B4DA8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* RTL-aware text */
+[dir="rtl"] { font-family: 'Cairo', sans-serif; }
+
+/* Sidebar nav button hover via JS — backup via CSS */
+aside button:hover {
+  opacity: 0.95;
+}
+
+/* Card hover lift */
+.card-interactive:hover {
+  box-shadow: 0 4px 20px rgba(27, 77, 168, 0.06);
+  transform: translateY(-1px);
+}
+.card-interactive {
+  transition: box-shadow 160ms ease, transform 160ms ease !important;
+}
+
+/* Progress bars — smooth fill on mount */
+@keyframes barFill {
+  from { width: 0 !important; }
+}
+
+/* Theme transition */
+body, body * {
+  transition-property: background-color, border-color;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+/* But NOT for color/text — causes jarring text flash */
+body * {
+  transition-property: background-color, border-color, box-shadow;
+}
