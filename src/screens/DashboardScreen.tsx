@@ -146,7 +146,7 @@ export default function DashboardScreen({ state, setState }: Props) {
             <button
               onClick={() => setState({ ...state, screen: "tutor" })}
               className="genai-cta"
-              style={{ display: "block", width: "100%", marginTop: 14, padding: "10px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}
+              style={{ display: "block", width: "100%", marginTop: 14, padding: "10px 0", borderRadius: 10, border: "none", background: tokens.primaryBtn, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}
             >
               {lang === "ar" ? "ابدأ الجلسة" : "Start Tutor Session"}
             </button>

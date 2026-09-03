@@ -107,7 +107,7 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
               </div>
               <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Institutional Email</label><input style={inp} type="email" placeholder="s.alrashidi@university.edu" dir="ltr" className="genai-input" /></div>
               <div style={{ marginBottom: 18 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Password</label><input style={inp} type="password" placeholder="Min. 12 characters" className="genai-input" /></div>
-              <button onClick={() => setStep(2)} className="genai-cta" style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}>
+              <button onClick={() => setStep(2)} className="genai-cta" style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: tokens.primaryBtn, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}>
                 Continue
               </button>
             </>
@@ -139,7 +139,7 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
                 <button onClick={() => setStep(1)} style={{ padding: "11px 18px", borderRadius: 10, border: `1.5px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textMuted, fontFamily: bFont, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
                   Back
                 </button>
-                <button onClick={() => setState({ ...state, screen: "student-dashboard" })} className="genai-cta" style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: tokens.primaryShadow }}>
+                <button onClick={() => setState({ ...state, screen: "student-dashboard" })} className="genai-cta" style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: tokens.primaryBtn, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: tokens.primaryShadow }}>
                   Request Access
                 </button>
               </div>

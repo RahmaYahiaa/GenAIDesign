@@ -346,7 +346,7 @@ export default function LoginScreen({ state, setState }: Props) {
             className="genai-cta"
             style={{
               width: "100%", padding: "12px 0", borderRadius: 10,
-              border: "none", background: tokens.primaryGrad, color: "white",
+              border: "none", background: tokens.primaryBtn, color: "white",
               fontFamily: hFont, fontWeight: 700, fontSize: 14,
               letterSpacing: "-0.01em", cursor: "pointer", marginBottom: 16,
               boxShadow: tokens.primaryShadow,

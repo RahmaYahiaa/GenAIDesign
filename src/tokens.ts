@@ -19,7 +19,7 @@ export const LIGHT = {
 
   primary: "#1B4DA8",
   primaryMid: "#1E5BB5",
-  primaryGrad: "linear-gradient(180deg, #2452C4 0%, #163F8A 100%)",
+  primaryBtn: "#1B4DA8",
   primaryShadow: "0 4px 14px rgba(27,77,168,0.30)",
   primaryDeep: "#163F8A",
   primaryLight: "#EBF1FB",
@@ -75,7 +75,7 @@ export const DARK = {
 
   primary: "#7D9BF6",
   primaryMid: "#8FA9F8",
-  primaryGrad: "linear-gradient(180deg, #7C99F0 0%, #5E82E8 100%)",
+  primaryBtn: "#6C8EF2",
   primaryShadow: "0 4px 14px rgba(108,142,242,0.32)",
   primaryDeep: "#6687EE",
   primaryLight: "#1A2248",
