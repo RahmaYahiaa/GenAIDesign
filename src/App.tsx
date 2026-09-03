@@ -30,11 +30,12 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
   return (
     <div style={{ display: "flex", minHeight: "calc(100vh - 44px)" }}>
       <div
+        className="hero-drift"
         style={{
           flex: "0 0 58%",
           background: state.dark
-            ? "linear-gradient(160deg, #0A0E23 0%, #131A38 60%, #1F1A45 100%)"
-            : "linear-gradient(160deg, #1B4DA8 0%, #1a5298 55%, #0E7A9E 100%)",
+            ? "linear-gradient(160deg, #080C1D 0%, #101530 60%, #1A1639 100%)"
+            : "linear-gradient(160deg, #163F8A 0%, #154685 55%, #0C6B8C 100%)",
           padding: "52px 60px",
           display: "flex", flexDirection: "column", justifyContent: "center",
           position: "relative", overflow: "hidden",
@@ -42,7 +43,7 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
       >
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.06) 1px, transparent 0)", backgroundSize: "28px 28px", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1, maxWidth: 460 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 48 }}>
+          <div className="rise-in" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 48, animationDelay: "60ms" }}>
             <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: 8, border: "1px solid rgba(255,255,255,0.18)" }}>
               <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                 <path d="M14 3L23 8.5V19.5L14 25L5 19.5V8.5L14 3Z" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round"/>
@@ -51,19 +52,19 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
             </div>
             <span style={{ fontFamily: hFont, fontWeight: 800, fontSize: 18, color: "white", letterSpacing: "-0.03em" }}>GenAI</span>
           </div>
-          <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 28, color: "white", letterSpacing: "-0.03em", lineHeight: 1.25, margin: "0 0 16px" }}>
+          <h1 className="rise-in" style={{ fontFamily: hFont, fontWeight: 700, fontSize: 28, color: "white", letterSpacing: "-0.03em", lineHeight: 1.25, margin: "0 0 16px", animationDelay: "160ms" }}>
             Join your institution&apos;s<br />
             <span style={{ color: "rgba(255,255,255,0.65)" }}>learning intelligence network.</span>
           </h1>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, margin: "0 0 32px" }}>
+          <p className="rise-in" style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.65, margin: "0 0 32px", animationDelay: "260ms" }}>
             Access is granted through your academic institution. Once verified, you receive personalised diagnostics, AI tutoring grounded in approved course materials, and proof of measurable learning growth.
           </p>
           {[
             { label: "Knowledge Diagnostics", desc: "Pinpoint exactly what you know and do not" },
             { label: "Grounded AI Tutor", desc: "Explanations tied to your actual course materials" },
             { label: "Provable Growth", desc: "Before/after mastery scores with full evidence trail" },
-          ].map((f) => (
-            <div key={f.label} style={{ display: "flex", gap: 12, marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 9 }}>
+          ].map((f, fi) => (
+            <div key={f.label} className="rise-in" style={{ display: "flex", gap: 12, marginBottom: 12, padding: "12px 14px", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 9, animationDelay: `${380 + fi * 110}ms` }}>
               <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#7FB2FF", marginTop: 6, flexShrink: 0 }} />
               <div>
                 <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13, color: "white", marginBottom: 1 }}>{f.label}</div>

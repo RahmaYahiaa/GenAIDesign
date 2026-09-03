@@ -58,11 +58,12 @@ export default function LoginScreen({ state, setState }: Props) {
     <div style={{ display: "flex", minHeight: "calc(100vh - 44px)" }}>
       {/* ── Left: Mastery Ladder Hero ───────────────────────── */}
       <div
+        className="hero-drift"
         style={{
           flex: "0 0 58%",
           background: state.dark
-            ? "linear-gradient(160deg, #0A0E23 0%, #131A38 60%, #1F1A45 100%)"
-            : "linear-gradient(160deg, #1B4DA8 0%, #1a5298 55%, #0E7A9E 100%)",
+            ? "linear-gradient(160deg, #080C1D 0%, #101530 60%, #1A1639 100%)"
+            : "linear-gradient(160deg, #163F8A 0%, #154685 55%, #0C6B8C 100%)",
           padding: "52px 60px",
           display: "flex",
           flexDirection: "column",
@@ -86,7 +87,7 @@ export default function LoginScreen({ state, setState }: Props) {
 
         <div style={{ position: "relative", zIndex: 1, maxWidth: 500 }}>
           {/* Brand */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 52 }}>
+          <div className="rise-in" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 52, animationDelay: "60ms" }}>
             <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: 8, border: "1px solid rgba(255,255,255,0.18)" }}>
               <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
                 <path d="M14 3L23 8.5V19.5L14 25L5 19.5V8.5L14 3Z" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round"/>
@@ -105,6 +106,7 @@ export default function LoginScreen({ state, setState }: Props) {
 
           {/* Core message */}
           <h1
+            className="rise-in"
             style={{
               fontFamily: hFont,
               fontWeight: 700,
@@ -113,6 +115,7 @@ export default function LoginScreen({ state, setState }: Props) {
               letterSpacing: "-0.03em",
               lineHeight: 1.25,
               margin: "0 0 10px",
+              animationDelay: "160ms",
             }}
           >
             Mastery is built on
@@ -120,12 +123,14 @@ export default function LoginScreen({ state, setState }: Props) {
             <span style={{ color: "rgba(255,255,255,0.65)" }}>real evidence, not AI guesses.</span>
           </h1>
           <p
+            className="rise-in"
             style={{
               fontSize: 14,
               color: "rgba(255,255,255,0.55)",
               lineHeight: 1.65,
               margin: "0 0 40px",
               maxWidth: 420,
+              animationDelay: "260ms",
             }}
           >
             GenAI tracks exactly what you know through diagnostic evidence — then personalises
@@ -134,10 +139,12 @@ export default function LoginScreen({ state, setState }: Props) {
 
           {/* Mastery Ladder */}
           <div
+            className="rise-in"
             style={{
               background: state.dark ? "rgba(14,20,48,0.85)" : "rgba(0,0,0,0.2)",
               border: state.dark ? "1px solid #242E5C" : "1px solid rgba(255,255,255,0.18)",
               borderRadius: 16,
+              animationDelay: "360ms",
               padding: "22px 24px",
               backdropFilter: "blur(16px)",
             }}
@@ -167,11 +174,11 @@ export default function LoginScreen({ state, setState }: Props) {
             </div>
 
             {/* Topic rows */}
-            {LADDER_TOPICS.map((topic) => {
+            {LADDER_TOPICS.map((topic, ti) => {
               const level = masteryLevel(topic.pct, topic.evidence > 0);
               const color = HERO_LEVEL_COLORS[level];
               return (
-                <div key={topic.label} style={{ marginBottom: 12 }}>
+                <div key={topic.label} className="rise-in" style={{ marginBottom: 12, animationDelay: `${520 + ti * 90}ms` }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
                     <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.8)", fontFamily: bFont }}>
                       {topic.label}
