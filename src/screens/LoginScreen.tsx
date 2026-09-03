@@ -43,8 +43,8 @@ export default function LoginScreen({ state, setState }: Props) {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 14px",
-    borderRadius: 8,
+    padding: "11px 14px",
+    borderRadius: 10,
     border: `1.5px solid ${tokens.cardBorder}`,
     background: tokens.inset,
     color: tokens.textPrimary,
@@ -52,7 +52,6 @@ export default function LoginScreen({ state, setState }: Props) {
     fontSize: 14,
     outline: "none",
     boxSizing: "border-box",
-    transition: "border-color 150ms ease",
   };
 
   return (
@@ -282,20 +281,21 @@ export default function LoginScreen({ state, setState }: Props) {
             <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em", textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar" ? "الدور" : "Role"}
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, padding: 4, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
               {(["student", "instructor", "admin"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setRole(r)}
                   style={{
                     padding: "8px 0",
-                    borderRadius: 8,
-                    border: `1.5px solid ${role === r ? tokens.primary : tokens.cardBorder}`,
-                    background: role === r ? tokens.primaryLight : tokens.card,
-                    color: role === r ? tokens.primary : tokens.textMuted,
+                    borderRadius: 7,
+                    border: "none",
+                    background: role === r ? tokens.card : "transparent",
+                    boxShadow: role === r ? "0 1px 4px rgba(13,26,46,0.12)" : "none",
+                    color: role === r ? (state.dark ? tokens.textPrimary : tokens.primary) : tokens.textMuted,
                     fontFamily: bFont,
-                    fontWeight: role === r ? 600 : 400,
-                    fontSize: 12,
+                    fontWeight: role === r ? 600 : 500,
+                    fontSize: 12.5,
                     cursor: "pointer",
                   }}
                 >
@@ -311,7 +311,7 @@ export default function LoginScreen({ state, setState }: Props) {
             <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.07em", textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar" ? "البريد المؤسسي" : "Institutional Email"}
             </label>
-            <input type="email" placeholder="you@university.edu" style={inputStyle} dir="ltr" />
+            <input type="email" placeholder="you@university.edu" style={inputStyle} dir="ltr" className="genai-input" />
           </div>
 
           <div style={{ marginBottom: 20 }}>
@@ -324,7 +324,7 @@ export default function LoginScreen({ state, setState }: Props) {
               </button>
             </div>
             <div style={{ position: "relative" }}>
-              <input type={showPass ? "text" : "password"} placeholder="••••••••••••" style={{ ...inputStyle, paddingRight: 40 }} dir="ltr" />
+              <input type={showPass ? "text" : "password"} placeholder="••••••••••••" style={{ ...inputStyle, paddingRight: 40 }} dir="ltr" className="genai-input" />
               <button
                 onClick={() => setShowPass(!showPass)}
                 style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: tokens.textMuted, padding: 0, display: "flex" }}
@@ -336,11 +336,13 @@ export default function LoginScreen({ state, setState }: Props) {
 
           <button
             onClick={() => setState({ ...state, screen: "student-dashboard" })}
+            className="genai-cta"
             style={{
-              width: "100%", padding: "11px 0", borderRadius: 8,
-              border: "none", background: tokens.primary, color: "white",
+              width: "100%", padding: "12px 0", borderRadius: 10,
+              border: "none", background: tokens.primaryGrad, color: "white",
               fontFamily: hFont, fontWeight: 700, fontSize: 14,
               letterSpacing: "-0.01em", cursor: "pointer", marginBottom: 16,
+              boxShadow: tokens.primaryShadow,
             }}
           >
             {lang === "ar" ? "دخول" : "Sign In"}
@@ -354,7 +356,7 @@ export default function LoginScreen({ state, setState }: Props) {
 
           <button
             style={{
-              width: "100%", padding: "10px 0", borderRadius: 8,
+              width: "100%", padding: "11px 0", borderRadius: 10,
               border: `1.5px solid ${tokens.cardBorder}`, background: tokens.card,
               color: tokens.textPrimary, fontFamily: bFont, fontWeight: 500,
               fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,

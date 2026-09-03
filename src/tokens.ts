@@ -19,6 +19,8 @@ export const LIGHT = {
 
   primary: "#1B4DA8",
   primaryMid: "#1E5BB5",
+  primaryGrad: "linear-gradient(180deg, #2A5FD4 0%, #1B4DA8 100%)",
+  primaryShadow: "0 4px 14px rgba(27,77,168,0.30)",
   primaryLight: "#EBF1FB",
   accent: "#3057CC",
 
@@ -72,6 +74,8 @@ export const DARK = {
 
   primary: "#7D9BF6",
   primaryMid: "#8FA9F8",
+  primaryGrad: "linear-gradient(180deg, #8AA6F7 0%, #6C8EF2 100%)",
+  primaryShadow: "0 4px 14px rgba(108,142,242,0.32)",
   primaryLight: "#1A2248",
   accent: "#A18CFF",          // Soft violet accent
 

@@ -145,7 +145,8 @@ export default function DashboardScreen({ state, setState }: Props) {
             <CitationChip label="CS301 · Lec 7 §3" tokens={tokens} />
             <button
               onClick={() => setState({ ...state, screen: "tutor" })}
-              style={{ display: "block", width: "100%", marginTop: 14, padding: "10px 0", borderRadius: 8, border: "none", background: tokens.primary, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", cursor: "pointer" }}
+              className="genai-cta"
+              style={{ display: "block", width: "100%", marginTop: 14, padding: "10px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}
             >
               {lang === "ar" ? "ابدأ الجلسة" : "Start Tutor Session"}
             </button>

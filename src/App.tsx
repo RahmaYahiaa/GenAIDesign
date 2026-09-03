@@ -21,9 +21,9 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
   const [step, setStep] = useState(1);
 
   const inp: React.CSSProperties = {
-    width: "100%", padding: "10px 14px", borderRadius: 8,
+    width: "100%", padding: "11px 14px", borderRadius: 10,
     border: `1.5px solid ${tokens.cardBorder}`, background: tokens.inset,
-    color: tokens.textPrimary, fontFamily: bFont, fontSize: 13,
+    color: tokens.textPrimary, fontFamily: bFont, fontSize: 13.5,
     outline: "none", boxSizing: "border-box",
   };
 
@@ -92,28 +92,28 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
             <>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.07em" }}>I am a</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 4, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
                   {(["student", "instructor"] as const).map((r) => (
-                    <button key={r} onClick={() => setRole(r)} style={{ padding: "9px 0", borderRadius: 8, border: `1.5px solid ${role === r ? tokens.primary : tokens.cardBorder}`, background: role === r ? tokens.primaryLight : tokens.card, color: role === r ? tokens.primary : tokens.textMuted, fontFamily: bFont, fontWeight: role === r ? 600 : 400, fontSize: 13, cursor: "pointer" }}>
+                    <button key={r} onClick={() => setRole(r)} style={{ padding: "9px 0", borderRadius: 7, border: "none", background: role === r ? tokens.card : "transparent", boxShadow: role === r ? "0 1px 4px rgba(13,26,46,0.12)" : "none", color: role === r ? (state.dark ? tokens.textPrimary : tokens.primary) : tokens.textMuted, fontFamily: bFont, fontWeight: role === r ? 600 : 500, fontSize: 13, cursor: "pointer" }}>
                       {r === "student" ? "Student" : "Instructor"}
                     </button>
                   ))}
                 </div>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>First Name</label><input style={inp} placeholder="Sarah" /></div>
-                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Last Name</label><input style={inp} placeholder="Al-Rashidi" /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>First Name</label><input style={inp} placeholder="Sarah" className="genai-input" /></div>
+                <div><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Last Name</label><input style={inp} placeholder="Al-Rashidi" className="genai-input" /></div>
               </div>
-              <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Institutional Email</label><input style={inp} type="email" placeholder="s.alrashidi@university.edu" dir="ltr" /></div>
-              <div style={{ marginBottom: 18 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Password</label><input style={inp} type="password" placeholder="Min. 12 characters" /></div>
-              <button onClick={() => setStep(2)} style={{ width: "100%", padding: "11px 0", borderRadius: 8, border: "none", background: tokens.primary, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em", cursor: "pointer" }}>
+              <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Institutional Email</label><input style={inp} type="email" placeholder="s.alrashidi@university.edu" dir="ltr" className="genai-input" /></div>
+              <div style={{ marginBottom: 18 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Password</label><input style={inp} type="password" placeholder="Min. 12 characters" className="genai-input" /></div>
+              <button onClick={() => setStep(2)} className="genai-cta" style={{ width: "100%", padding: "12px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, letterSpacing: "-0.01em", cursor: "pointer", boxShadow: tokens.primaryShadow }}>
                 Continue
               </button>
             </>
           ) : (
             <>
               <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Institution</label>
-                <select style={{ ...inp, appearance: "none", cursor: "pointer" }}>
+                <select style={{ ...inp, appearance: "none", cursor: "pointer" }} className="genai-input">
                   <option>King Abdullah University of Science and Technology</option>
                   <option>Massachusetts Institute of Technology</option>
                   <option>Stanford University</option>
@@ -121,24 +121,24 @@ function RegisterScreen({ state, setState }: { state: AppState; setState: (s: Ap
                 </select>
               </div>
               <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Department</label>
-                <select style={{ ...inp, appearance: "none", cursor: "pointer" }}>
+                <select style={{ ...inp, appearance: "none", cursor: "pointer" }} className="genai-input">
                   <option>Computer Science</option>
                   <option>Electrical Engineering</option>
                   <option>Mathematics</option>
                 </select>
               </div>
-              <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>{role === "student" ? "Student ID" : "Faculty ID"}</label><input style={inp} placeholder={role === "student" ? "202341872" : "FAC-2024-0087"} dir="ltr" /></div>
+              <div style={{ marginBottom: 12 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>{role === "student" ? "Student ID" : "Faculty ID"}</label><input style={inp} placeholder={role === "student" ? "202341872" : "FAC-2024-0087"} dir="ltr" className="genai-input" /></div>
               {role === "student" && (
-                <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Enrollment Code</label><input style={inp} placeholder="Provided by your instructor" dir="ltr" /></div>
+                <div style={{ marginBottom: 14 }}><label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.07em" }}>Enrollment Code</label><input style={inp} placeholder="Provided by your instructor" dir="ltr" className="genai-input" /></div>
               )}
               <div style={{ padding: "10px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, marginBottom: 18 }}>
                 <p style={{ fontSize: 11, color: tokens.textMuted, margin: 0, lineHeight: 1.55 }}>Your academic data is protected under FERPA and stored in compliance with your institution data governance policy.</p>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={() => setStep(1)} style={{ padding: "10px 16px", borderRadius: 8, border: `1.5px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textMuted, fontFamily: bFont, fontSize: 13, cursor: "pointer" }}>
+                <button onClick={() => setStep(1)} style={{ padding: "11px 18px", borderRadius: 10, border: `1.5px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textMuted, fontFamily: bFont, fontSize: 13, fontWeight: 500, cursor: "pointer" }}>
                   Back
                 </button>
-                <button onClick={() => setState({ ...state, screen: "student-dashboard" })} style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", background: tokens.primary, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                <button onClick={() => setState({ ...state, screen: "student-dashboard" })} className="genai-cta" style={{ flex: 1, padding: "11px 0", borderRadius: 10, border: "none", background: tokens.primaryGrad, color: "white", fontFamily: hFont, fontWeight: 700, fontSize: 14, cursor: "pointer", boxShadow: tokens.primaryShadow }}>
                   Request Access
                 </button>
               </div>

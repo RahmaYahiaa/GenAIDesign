@@ -39,6 +39,35 @@ main > * {
 ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.4); }
 
+/* Inputs — professional focus ring shared by login/register */
+.genai-input {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease !important;
+}
+.genai-input:focus {
+  border-color: #1B4DA8 !important;
+  box-shadow: 0 0 0 3px rgba(27, 77, 168, 0.13) !important;
+  background: #FFFFFF !important;
+}
+.dark .genai-input:focus,
+[data-theme="dark"] .genai-input:focus {
+  border-color: #7D9BF6 !important;
+  box-shadow: 0 0 0 3px rgba(125, 155, 246, 0.16) !important;
+  background: #1A2248 !important;
+}
+
+/* Primary CTA — same gradient as Start Tutor Session */
+.genai-cta {
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease !important;
+}
+.genai-cta:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+.genai-cta:active {
+  filter: brightness(0.96);
+  transform: translateY(0);
+}
+
 /* Tooltip hover */
 .tooltip-trigger:hover .tooltip-box {
   opacity: 1 !important;
