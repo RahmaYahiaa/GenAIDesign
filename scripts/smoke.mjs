@@ -12,19 +12,20 @@ const { InstructorModuleProvider } = await load("/src/store/InstructorStore.tsx"
 const cases = [
   ["InstructorHome", "/src/screens/instructor/InstructorHomeScreen.tsx", { screen: "instructor-home", dark: false, lang: "en" }],
   ["InstructorHome(dark/ar)", "/src/screens/instructor/InstructorHomeScreen.tsx", { screen: "instructor-home", dark: true, lang: "ar" }],
+  ["LegacyAnalytics", "/src/screens/InstructorScreen.tsx", { screen: "instructor", dark: false, lang: "en", courseId: "CS301" }],
+  ["LegacyAnalytics(dark)", "/src/screens/InstructorScreen.tsx", { screen: "instructor", dark: true, lang: "ar", courseId: "CS301" }],
   ["CourseWorkspace overview", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS301", tab: "overview" }],
   ["CourseWorkspace assignments", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS301", tab: "assignments" }],
-  ["CourseWorkspace analytics", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "MATH201", tab: "analytics" }],
+  ["CourseWorkspace analytics", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS401", tab: "analytics" }],
   ["CourseWorkspace audit", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS301", tab: "audit" }],
   ["AssignmentCreate", "/src/screens/instructor/AssignmentCreateScreen.tsx", { screen: "assignment-create", dark: false, lang: "en", courseId: "CS301" }],
-  ["AssignmentReview", "/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-cs301-3" }],
-  ["AssignmentReview(closed)", "/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-cs301-1" }],
-  ["RemedialStudio", "/src/screens/instructor/RemedialStudioScreen.tsx", { screen: "remedial-studio", dark: false, lang: "en" }],
+  ["AssignmentReview", "/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-hash" }],
+  ["AssignmentReview(closed)", "/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-quiz" }],
   ["StudentAssignments", "/src/screens/student/StudentAssignmentsScreen.tsx", { screen: "student-assignments", dark: false, lang: "en" }],
   ["StudentAssignments(personal)", "/src/screens/student/StudentAssignmentsScreen.tsx", { screen: "student-assignments", dark: false, lang: "en", personalOnly: true }],
-  ["StudentAssignment(draft)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-cs301-3" }],
-  ["StudentAssignment(resubmit)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-cs301-2" }],
-  ["StudentAssignment(closed)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-cs301-1" }],
+  ["StudentAssignment(draft)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-bst" }],
+  ["StudentAssignment(resubmit)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-hash" }],
+  ["StudentAssignment(closed)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-quiz" }],
 ];
 
 let failed = 0;

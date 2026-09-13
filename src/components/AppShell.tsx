@@ -3,7 +3,7 @@ import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
   IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
-  IconClipboard, IconSparkle,
+  IconClipboard,
 } from "./Icons";
 
 export type WorkspaceTab = "overview" | "assignments" | "analytics" | "audit";
@@ -13,7 +13,7 @@ type Screen =
   | "diagnostic" | "practice" | "reassessment" | "profile"
   | "student-assignments" | "student-assignment"
   | "instructor-home" | "course-workspace" | "assignment-create"
-  | "assignment-review" | "remedial-studio";
+  | "assignment-review" | "instructor";
 
 export type { Screen };
 
@@ -54,9 +54,9 @@ const STUDENT_NAV_BOTTOM: { id: Screen; labelEn: string; labelAr: string; Icon: 
 ];
 
 const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
-  { id: "instructor-home", labelEn: "Home", labelAr: "الرئيسية", Icon: IconDashboard },
-  { id: "course-workspace", labelEn: "Course Workspace", labelAr: "مساحة المقرر", Icon: IconCourses },
-  { id: "remedial-studio", labelEn: "Remedial Content", labelAr: "محتوى علاجي", Icon: IconSparkle },
+  { id: "instructor-home", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
+  { id: "course-workspace", labelEn: "Workspace", labelAr: "مساحة العمل", Icon: IconClipboard },
+  { id: "instructor", labelEn: "Legacy Analytics", labelAr: "التحليلات القديمة", Icon: IconDashboard },
 ];
 
 /** Sub-screens that should keep their parent nav item highlighted. */
@@ -133,19 +133,9 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const activeScreen = (NAV_PARENT[state.screen as Screen] ?? state.screen) as Screen;
 
   const ctxCourse = state.courseId ?? "CS301";
-  const contextLabel = (() => {
-    const s = state.screen;
-    if (role === "instructor") {
-      if (s === "instructor-home") return lang === "ar" ? "مركز إجراءات المدرّس — كل المقررات" : "Instructor action center — all courses";
-      if (s === "remedial-studio") return lang === "ar" ? `استوديو المحتوى العلاجي — ${ctxCourse}` : `Remedial content studio — ${ctxCourse}`;
-      if (s === "assignment-create") return lang === "ar" ? `تكليف جديد — ${ctxCourse}` : `New assignment — ${ctxCourse}`;
-      if (s === "assignment-review") return lang === "ar" ? `مراجعة التكليف — ${ctxCourse}` : `Assignment review — ${ctxCourse}`;
-      return lang === "ar" ? `مساحة المقرر — ${ctxCourse}` : `Course workspace — ${ctxCourse}`;
-    }
-    if (s === "student-assignments" || s === "student-assignment")
-      return lang === "ar" ? `التكليفات — ${ctxCourse}` : `Assignments — ${ctxCourse}`;
-    return `CS301 · ${lang === "ar" ? "الأسبوع 9" : "Week 9"}`;
-  })();
+  const contextLabel = role === "instructor"
+    ? (lang === "ar" ? `لوحة تحكم المدرس — ${ctxCourse}` : `Instructor Dashboard — ${ctxCourse}`)
+    : `CS301 · ${lang === "ar" ? "الأسبوع 9" : "Week 9"}`;
 
   const navItem = (item: typeof STUDENT_NAV[0]) => {
     const isActive = activeScreen === item.id;
@@ -332,16 +322,16 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               flexShrink: 0,
             }}
           >
-            {role === "instructor" ? "NA" : "SA"}
+            {role === "instructor" ? "NM" : "SA"}
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: textPrimary, fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {role === "instructor"
-                ? (lang === "ar" ? "د. نادية المانع" : "Dr. Nadia Al-Manea")
+                ? (lang === "ar" ? "أ.د. نادية المانع" : "Prof. Dr. Nadia Al-Manea")
                 : (lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi")}
             </div>
             <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>
-              {role === "instructor" ? "CS301 · CS302 · MATH201" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS302"}
+              {role === "instructor" ? "CS301 · CS401 · CS303" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS401"}
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, useCallback, ReactNode } from "react";
 import {
   AssignmentDef, AnswerDecision, AuditEntry, CourseInfo, QuestionDef, ReviewUnit,
-  RemedialDraft, COURSES, ASSIGNMENTS, SEED_UNITS, SEED_AUDIT, SEED_DRAFTS,
+  RemedialDraft, COURSES, ASSIGNMENTS, SEED_UNITS, SEED_AUDIT, SEED_DRAFTS, SEED_REMEDIAL, ANALYTICS_AS_OF,
   DEMO_STUDENT_ID, INSTRUCTOR_NAME, evaluateAnswer, latestAttempt, approvedMaterials,
 } from "@/data/instructorModule";
 
@@ -32,8 +32,8 @@ function initialState(): ModuleState {
     units: structuredClone(SEED_UNITS),
     audit: structuredClone(SEED_AUDIT),
     drafts: structuredClone(SEED_DRAFTS),
-    remedial: [],
-    analyticsAsOf: nowIso(),
+    remedial: structuredClone(SEED_REMEDIAL),
+    analyticsAsOf: ANALYTICS_AS_OF,
   };
 }
 
