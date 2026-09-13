@@ -3,11 +3,17 @@ import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
   IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
+  IconClipboard, IconSparkle,
 } from "./Icons";
+
+export type WorkspaceTab = "overview" | "assignments" | "analytics" | "audit";
 
 type Screen =
   | "student-dashboard" | "courses" | "mastery" | "tutor"
-  | "diagnostic" | "practice" | "reassessment" | "profile" | "instructor";
+  | "diagnostic" | "practice" | "reassessment" | "profile"
+  | "student-assignments" | "student-assignment"
+  | "instructor-home" | "course-workspace" | "assignment-create"
+  | "assignment-review" | "remedial-studio";
 
 export type { Screen };
 
@@ -15,6 +21,18 @@ interface AppState {
   screen: Screen | "login" | "register";
   dark: boolean;
   lang: "en" | "ar";
+  /** Course the current workspace / student view is scoped to. */
+  courseId?: string;
+  /** Assignment currently open (review, create-target or student view). */
+  assignmentId?: string;
+  /** Active tab of the course workspace. */
+  tab?: WorkspaceTab;
+  /**
+   * Demo control modelling account type: when true the signed-in learner holds
+   * only personal courses, so the whole assignment module must disappear
+   * (FR-SCOPE-03) — no disabled tab, no nav item, nothing.
+   */
+  personalOnly?: boolean;
 }
 
 export type { AppState };
@@ -22,6 +40,8 @@ export type { AppState };
 const STUDENT_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "student-dashboard", labelEn: "Dashboard", labelAr: "لوحة التحكم", Icon: IconDashboard },
   { id: "courses", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
+  // Institutional-only (FR-SCOPE-03) — filtered out for personal-only accounts.
+  { id: "student-assignments", labelEn: "Assignments", labelAr: "التكليفات", Icon: IconClipboard },
   { id: "mastery", labelEn: "Topics & Mastery", labelAr: "المواضيع والإتقان", Icon: IconMastery },
   { id: "tutor", labelEn: "AI Tutor", labelAr: "المعلم الذكي", Icon: IconTutor },
   { id: "diagnostic", labelEn: "Diagnostic", labelAr: "التشخيص", Icon: IconDiagnostic },
@@ -34,8 +54,17 @@ const STUDENT_NAV_BOTTOM: { id: Screen; labelEn: string; labelAr: string; Icon: 
 ];
 
 const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
-  { id: "instructor", labelEn: "Analytics", labelAr: "التحليلات", Icon: IconDashboard },
+  { id: "instructor-home", labelEn: "Home", labelAr: "الرئيسية", Icon: IconDashboard },
+  { id: "course-workspace", labelEn: "Course Workspace", labelAr: "مساحة المقرر", Icon: IconCourses },
+  { id: "remedial-studio", labelEn: "Remedial Content", labelAr: "محتوى علاجي", Icon: IconSparkle },
 ];
+
+/** Sub-screens that should keep their parent nav item highlighted. */
+const NAV_PARENT: Partial<Record<Screen, Screen>> = {
+  "student-assignment": "student-assignments",
+  "assignment-create": "course-workspace",
+  "assignment-review": "course-workspace",
+};
 
 interface AppShellProps {
   state: AppState;
@@ -95,9 +124,28 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const cardBorder = T.cardBorder;
   const topbarBg = dark ? "rgba(10,14,35,0.95)" : "rgba(244,246,249,0.95)";
 
-  const nav = role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
+  const baseNav = role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
+  // FR-SCOPE-03 — a personal-only account sees no assignment affordance at all.
+  const nav = role === "student" && state.personalOnly
+    ? baseNav.filter((i) => i.id !== "student-assignments")
+    : baseNav;
   const navBottom = role === "student" ? STUDENT_NAV_BOTTOM : [];
-  const activeScreen = state.screen as Screen;
+  const activeScreen = (NAV_PARENT[state.screen as Screen] ?? state.screen) as Screen;
+
+  const ctxCourse = state.courseId ?? "CS301";
+  const contextLabel = (() => {
+    const s = state.screen;
+    if (role === "instructor") {
+      if (s === "instructor-home") return lang === "ar" ? "مركز إجراءات المدرّس — كل المقررات" : "Instructor action center — all courses";
+      if (s === "remedial-studio") return lang === "ar" ? `استوديو المحتوى العلاجي — ${ctxCourse}` : `Remedial content studio — ${ctxCourse}`;
+      if (s === "assignment-create") return lang === "ar" ? `تكليف جديد — ${ctxCourse}` : `New assignment — ${ctxCourse}`;
+      if (s === "assignment-review") return lang === "ar" ? `مراجعة التكليف — ${ctxCourse}` : `Assignment review — ${ctxCourse}`;
+      return lang === "ar" ? `مساحة المقرر — ${ctxCourse}` : `Course workspace — ${ctxCourse}`;
+    }
+    if (s === "student-assignments" || s === "student-assignment")
+      return lang === "ar" ? `التكليفات — ${ctxCourse}` : `Assignments — ${ctxCourse}`;
+    return `CS301 · ${lang === "ar" ? "الأسبوع 9" : "Week 9"}`;
+  })();
 
   const navItem = (item: typeof STUDENT_NAV[0]) => {
     const isActive = activeScreen === item.id;
@@ -284,13 +332,17 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               flexShrink: 0,
             }}
           >
-            SA
+            {role === "instructor" ? "NA" : "SA"}
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: textPrimary, fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi"}
+              {role === "instructor"
+                ? (lang === "ar" ? "د. نادية المانع" : "Dr. Nadia Al-Manea")
+                : (lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi")}
             </div>
-            <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>CS301 · CS302</div>
+            <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>
+              {role === "instructor" ? "CS301 · CS302 · MATH201" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS302"}
+            </div>
           </div>
         </div>
       </aside>
@@ -313,23 +365,12 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
             flexDirection: isRtl ? "row-reverse" : "row",
           }}
         >
-          {/* Screen switcher for instructor */}
-          {role === "instructor" && (
-            <div style={{ flex: 1 }}>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: textMuted }}>
-                {lang === "ar" ? "لوحة تحكم المدرس — CS301" : "Instructor Dashboard — CS301"}
-              </span>
-            </div>
-          )}
-
-          {/* Screen nav label */}
-          {role === "student" && (
-            <div style={{ flex: 1, textAlign: isRtl ? "right" : "left" }}>
-              <span style={{ fontFamily: MONO, fontSize: 11, color: textMuted }}>
-                CS301 · {lang === "ar" ? "الأسبوع 9" : "Week 9"}
-              </span>
-            </div>
-          )}
+          {/* Context label — reflects the active workspace / course scope */}
+          <div style={{ flex: 1, textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
+            <span style={{ fontFamily: MONO, fontSize: 11, color: textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "inline-block", maxWidth: "100%" }}>
+              {contextLabel}
+            </span>
+          </div>
 
           {/* Notification icon */}
           <button
@@ -463,10 +504,10 @@ export function AuthShell({ state, setState, children }: AuthShellProps) {
 
           {/* Demo navigation */}
           <div style={{ width: 1, height: 20, background: cardBorder, margin: "5px 4px" }} />
-          {(["student-dashboard", "instructor"] as Screen[]).map((s) => (
+          {([["student-dashboard", "STUDENT"], ["instructor-home", "INSTRUCTOR"]] as [Screen, string][]).map(([s, label]) => (
             <button
               key={s}
-              onClick={() => setState({ ...state, screen: s })}
+              onClick={() => setState({ ...state, screen: s, courseId: s === "instructor-home" ? undefined : state.courseId })}
               style={{
                 padding: "4px 10px", borderRadius: 6,
                 border: `1px solid ${cardBorder}`, background: "transparent",
@@ -474,7 +515,7 @@ export function AuthShell({ state, setState, children }: AuthShellProps) {
                 cursor: "pointer", letterSpacing: "0.04em",
               }}
             >
-              {s === "student-dashboard" ? "STUDENT" : "INSTRUCTOR"}
+              {label}
             </button>
           ))}
         </div>

@@ -342,7 +342,7 @@ export default function LoginScreen({ state, setState }: Props) {
           </div>
 
           <button
-            onClick={() => setState({ ...state, screen: "student-dashboard" })}
+            onClick={() => setState({ ...state, screen: role === "instructor" ? "instructor-home" : "student-dashboard", courseId: role === "instructor" ? "CS301" : state.courseId })}
             className="genai-cta"
             style={{
               width: "100%", padding: "12px 0", borderRadius: 10,
@@ -393,7 +393,8 @@ export default function LoginScreen({ state, setState }: Props) {
                 { id: "student-dashboard", label: "Dashboard" },
                 { id: "tutor", label: "AI Tutor" },
                 { id: "diagnostic", label: "Diagnostic" },
-                { id: "instructor", label: "Instructor" },
+                { id: "instructor-home", label: "Instructor Home" },
+                { id: "student-assignments", label: "Student Assignments" },
               ].map((s) => (
                 <button
                   key={s.id}

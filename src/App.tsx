@@ -7,10 +7,22 @@ import TutorScreen from "./screens/TutorScreen";
 import DiagnosticScreen from "./screens/DiagnosticScreen";
 import PracticeScreen from "./screens/PracticeScreen";
 import ReassessmentScreen from "./screens/ReassessmentScreen";
-import InstructorScreen from "./screens/InstructorScreen";
+import InstructorHomeScreen from "./screens/instructor/InstructorHomeScreen";
+import CourseWorkspaceScreen from "./screens/instructor/CourseWorkspaceScreen";
+import AssignmentCreateScreen from "./screens/instructor/AssignmentCreateScreen";
+import AssignmentReviewScreen from "./screens/instructor/AssignmentReviewScreen";
+import RemedialStudioScreen from "./screens/instructor/RemedialStudioScreen";
+import StudentAssignmentsScreen from "./screens/student/StudentAssignmentsScreen";
+import StudentAssignmentScreen from "./screens/student/StudentAssignmentScreen";
+import { InstructorModuleProvider } from "./store/InstructorStore";
 import { tk, MONO } from "./tokens";
 import { EmptyState } from "./components/SharedUI";
 import { IconCourses, IconProfile } from "./components/Icons";
+
+/** Screens that render inside the instructor shell. */
+const INSTRUCTOR_SCREENS = [
+  "instructor-home", "course-workspace", "assignment-create", "assignment-review", "remedial-studio",
+] as const;
 
 // ─── Register Screen ──────────────────────────────────────────────────────────
 function RegisterScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
@@ -206,7 +218,7 @@ function CoursesScreen({ state, setState }: { state: AppState; setState: (s: App
 }
 
 // ─── Profile Screen ───────────────────────────────────────────────────────────
-function ProfileScreen({ state }: { state: AppState }) {
+function ProfileScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
@@ -240,6 +252,35 @@ function ProfileScreen({ state }: { state: AppState }) {
           </div>
         ))}
       </div>
+
+      {/* Account-type demo control — proves the institutional-only scope rule */}
+      <div style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 14, padding: "20px 24px", maxWidth: 480, marginTop: 16 }}>
+        <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
+          {lang === "ar" ? "عرض توضيحي — نوع الحساب" : "DEMO — ACCOUNT TYPE"}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ textAlign: isRtl ? "right" : "left" }}>
+            <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary, marginBottom: 3 }}>
+              {state.personalOnly
+                ? (lang === "ar" ? "حساب شخصي فقط (بلا مقررات مؤسسية)" : "Personal-only account (no institutional courses)")
+                : (lang === "ar" ? "حساب مؤسسي (مسجّل في CS301 · CS302)" : "Institutional account (enrolled in CS301 · CS302)")}
+            </div>
+            <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.55 }}>
+              {lang === "ar"
+                ? "وحدة التكليفات مؤسسة فقط: في الحساب الشخصي يختفي تبويب التكليفات تماماً — لا يظهر معطّلاً."
+                : "The assignment module is institution-only: on a personal account the Assignments tab disappears entirely — it is never shown disabled."}
+            </div>
+          </div>
+          <button
+            onClick={() => setState({ ...state, personalOnly: !state.personalOnly, screen: state.personalOnly ? state.screen : "student-dashboard" })}
+            role="switch"
+            aria-checked={Boolean(state.personalOnly)}
+            style={{ width: 40, height: 22, borderRadius: 20, border: `1px solid ${state.personalOnly ? tokens.gap : tokens.cardBorder}`, background: state.personalOnly ? tokens.gapBg : tokens.inset, position: "relative", cursor: "pointer", flexShrink: 0, padding: 0 }}
+          >
+            <span style={{ position: "absolute", top: 2, left: state.personalOnly ? 20 : 2, width: 16, height: 16, borderRadius: "50%", background: state.personalOnly ? tokens.gap : tokens.textFaint, transition: "left 160ms ease, background 160ms ease" }} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -257,7 +298,7 @@ export default function App() {
   }, [state.dark]);
 
   const isAuth = state.screen === "login" || state.screen === "register";
-  const isInstructor = state.screen === "instructor";
+  const isInstructor = (INSTRUCTOR_SCREENS as readonly string[]).includes(state.screen);
 
   const renderScreen = () => {
     switch (state.screen) {
@@ -270,23 +311,33 @@ export default function App() {
       case "diagnostic": return <DiagnosticScreen state={state} setState={setState} />;
       case "practice": return <PracticeScreen state={state} setState={setState} />;
       case "reassessment": return <ReassessmentScreen state={state} setState={setState} />;
-      case "profile": return <ProfileScreen state={state} />;
-      case "instructor": return <InstructorScreen state={state} setState={setState} />;
+      case "profile": return <ProfileScreen state={state} setState={setState} />;
+      case "student-assignments": return <StudentAssignmentsScreen state={state} setState={setState} />;
+      case "student-assignment": return <StudentAssignmentScreen state={state} setState={setState} />;
+      case "instructor-home": return <InstructorHomeScreen state={state} setState={setState} />;
+      case "course-workspace": return <CourseWorkspaceScreen state={state} setState={setState} />;
+      case "assignment-create": return <AssignmentCreateScreen state={state} setState={setState} />;
+      case "assignment-review": return <AssignmentReviewScreen state={state} setState={setState} />;
+      case "remedial-studio": return <RemedialStudioScreen state={state} setState={setState} />;
       default: return null;
     }
   };
 
   if (isAuth) {
     return (
-      <AuthShell state={state} setState={setState}>
-        {renderScreen()}
-      </AuthShell>
+      <InstructorModuleProvider>
+        <AuthShell state={state} setState={setState}>
+          {renderScreen()}
+        </AuthShell>
+      </InstructorModuleProvider>
     );
   }
 
   return (
-    <AppShell state={state} setState={setState} role={isInstructor ? "instructor" : "student"}>
-      {renderScreen()}
-    </AppShell>
+    <InstructorModuleProvider>
+      <AppShell state={state} setState={setState} role={isInstructor ? "instructor" : "student"}>
+        {renderScreen()}
+      </AppShell>
+    </InstructorModuleProvider>
   );
 }

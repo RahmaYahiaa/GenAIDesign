@@ -39,3 +39,17 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
 - Use double quotes for strings containing apostrophes (`"We're here to help"`), or escape them in single-quoted strings. An unescaped apostrophe in a single-quoted string breaks the build.
 - Ensure JSX tags are closed and braces are balanced.
 - Export components as default exports.
+
+## Instructor Workspace module
+
+The assignment / AI-grading module (institution-only) lives in:
+
+- `src/data/instructorModule.ts` — types, seed, and the shared AI evaluation pipeline
+- `src/store/InstructorStore.tsx` — module state + all instructor/student actions (audit-logged)
+- `src/components/ModuleUI.tsx`, `src/components/RemedialPanel.tsx` — module UI primitives
+- `src/screens/instructor/*`, `src/screens/student/*` — the screens themselves
+
+Screen routing is a flat `state.screen` switch in `src/App.tsx`; navigation entries live in
+`src/components/AppShell.tsx` (`INSTRUCTOR_NAV` / `STUDENT_NAV`). See
+`docs/INSTRUCTOR_MODULE.md` for the FRD traceability map and `node scripts/smoke.mjs`
+for an SSR render check of every screen and state.
