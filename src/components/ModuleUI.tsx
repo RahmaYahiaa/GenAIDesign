@@ -1,7 +1,7 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Tokens, MONO } from "../tokens";
 import type { Confidence, Lang } from "../data/instructorModule";
-import { IconWarning, IconCheck, IconSparkle, IconEye, IconEyeOff, IconChevronLeft } from "./Icons";
+import { IconWarning, IconCheck, IconSparkle, IconEye, IconEyeOff, IconChevronLeft, IconX } from "./Icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared primitives for the Instructor Workspace module. Visual language is
@@ -220,19 +220,38 @@ export function Modal({ open, onClose, title, subtitle, children, tokens, lang, 
   open: boolean; onClose: () => void; title: string; subtitle?: string;
   children: ReactNode; tokens: Tokens; lang: Lang; width?: number;
 }) {
+  // Esc closes — keyboard parity with the backdrop click and the X button.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
   if (!open) return null;
   const hFont = hFontFor(lang);
   return (
     <div
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
       style={{ position: "fixed", inset: 0, background: "rgba(10,14,35,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(3px)" }}
     >
       <div
         className="rise-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: "100%", maxWidth: width, background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 14, padding: "22px 24px", boxShadow: "0 24px 60px rgba(10,14,35,0.35)" }}
+        style={{ width: "100%", maxWidth: width, maxHeight: "88vh", overflowY: "auto", background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 14, padding: "22px 24px", boxShadow: "0 24px 60px rgba(10,14,35,0.35)" }}
       >
-        <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 16, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: subtitle ? 4 : 14 }}>{title}</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: subtitle ? 4 : 14, flexDirection: lang === "ar" ? "row-reverse" : "row" }}>
+          <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 16, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>{title}</div>
+          <button
+            onClick={onClose}
+            aria-label={lang === "ar" ? "إغلاق" : "Close"}
+            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: tokens.textFaint, flexShrink: 0 }}
+          >
+            <IconX size={15} color={tokens.textFaint} />
+          </button>
+        </div>
         {subtitle && <div style={{ fontFamily: bFontFor(lang), fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6, marginBottom: 16 }}>{subtitle}</div>}
         {children}
       </div>
@@ -381,5 +400,77 @@ export function BackCircle({ onClick, tokens, rtl }: { onClick: () => void; toke
     >
       <IconChevronLeft size={14} color={tokens.textSecondary} />
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lightweight toast bus — mount <Toaster/> once (AppShell) and call toast()
+// from any action handler. No context plumbing, SSR-safe.
+// ─────────────────────────────────────────────────────────────────────────────
+export function toast(message: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent("genai-toast", { detail: message }));
+}
+
+export function Toaster({ tokens, lang }: { tokens: Tokens; lang: Lang }) {
+  const [items, setItems] = useState<{ id: number; msg: string }[]>([]);
+  useEffect(() => {
+    let seq = 0;
+    const on = (e: Event) => {
+      const id = ++seq;
+      setItems((xs) => [...xs, { id, msg: (e as CustomEvent).detail as string }]);
+      setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== id)), 3600);
+    };
+    window.addEventListener("genai-toast", on);
+    return () => window.removeEventListener("genai-toast", on);
+  }, []);
+  if (items.length === 0) return null;
+  return (
+    <div style={{ position: "fixed", bottom: 20, insetInlineEnd: 20, zIndex: 80, display: "flex", flexDirection: "column", gap: 8, maxWidth: 360 }}>
+      {items.map((t) => (
+        <div
+          key={t.id}
+          role="status"
+          style={{
+            background: tokens.card, border: `1px solid ${tokens.primary}55`, borderInlineStart: `3px solid ${tokens.primary}`,
+            borderRadius: 10, padding: "10px 14px", boxShadow: tokens.primaryShadow,
+            fontFamily: bFontFor(lang), fontSize: 12.5, color: tokens.textPrimary, lineHeight: 1.5,
+            animation: "genai-fade-in .18s ease-out",
+          }}
+        >
+          {t.msg}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Two-step confirm button: first click arms it (label swaps, violet ring),
+// second click within the window fires. Replaces window.confirm everywhere.
+export function ConfirmBtn({ label, confirmLabel, onConfirm, tokens, lang, variant = "ghost", disabled, style }: {
+  label: ReactNode; confirmLabel: ReactNode; onConfirm: () => void;
+  tokens: Tokens; lang: Lang; variant?: "ghost" | "soft" | "solid" | "violet";
+  disabled?: boolean; style?: React.CSSProperties;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  return (
+    <Btn
+      tokens={tokens}
+      lang={lang}
+      variant={armed ? "violet" : variant}
+      disabled={disabled}
+      style={style}
+      onClick={() => {
+        if (armed) { setArmed(false); onConfirm(); }
+        else setArmed(true);
+      }}
+    >
+      {armed ? confirmLabel : label}
+    </Btn>
   );
 }

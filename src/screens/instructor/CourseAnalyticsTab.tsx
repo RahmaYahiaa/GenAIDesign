@@ -1,23 +1,25 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AppState } from "../../components/AppShell";
-import { tk, MONO, masteryLevel, masteryColor, masteryBg, masteryLevelLabel, MasteryLevel } from "../../tokens";
+import { tk, MONO, masteryColor, masteryLevel, masteryBg } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { Card, Btn, Chip, Modal, Field, inputStyle, AlertStrip, bFontFor, hFontFor, Th } from "../../components/ModuleUI";
-import { StatTile, MasteryBar, MasteryPill, CitationChip } from "../../components/SharedUI";
-import { IconSparkle, IconWarning, IconUpload, IconTrendUp, IconClock, IconLock } from "../../components/Icons";
-import RemedialPanel, { RemedialEntry } from "../../components/RemedialPanel";
-import { STUDENTS, approvedMaterials, fmtWhen, StudentInfo } from "../../data/instructorModule";
+import {
+  Card, Btn, Chip, Modal, inputStyle, bFontFor, hFontFor, toast, Th,
+} from "../../components/ModuleUI";
+import { CitationChip, MasteryBar } from "../../components/SharedUI";
+import { IconWarning, IconUpload, IconCheck, IconDownload, IconSparkle } from "../../components/Icons";
+import RemedialModal, { RemedialEntry } from "../../components/RemedialModal";
+import {
+  MISCONCEPTIONS, STUDENTS, COURSE_SESSIONS, approvedMaterials, fmtWhen,
+} from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Course analytics (FR-ANALYTICS-01..05, FR-COVERAGE-*). Precomputed figures
-// with an explicit "as of" freshness stamp — never a live-updating dashboard.
-// Mastery visuals reuse the exact per-student mastery language.
+// Course Analytics — reference d6/d13. Everything on this screen is a
+// precomputed snapshot: the as-of stamp is the contract (FR-ANALYTICS-01/02),
+// and every "Generate" entry point opens the remedial modal pre-filled.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const LEVELS: MasteryLevel[] = ["no-evidence", "beginner", "intermediate", "advanced", "mastered"];
 
 export default function CourseAnalyticsTab({ state, courseId }: { state: AppState; courseId: string }) {
-  const { state: mod, addMaterial } = useInstructorModule();
+  const { state: mod, addMaterial, approveMaterial } = useInstructorModule();
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
@@ -26,316 +28,347 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
 
   const course = mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
   const [remedialEntry, setRemedialEntry] = useState<RemedialEntry | null>(null);
-  const [authFor, setAuthFor] = useState<StudentInfo | null>(null);
-  const [authorized, setAuthorized] = useState(false);
-  const [uploadFor, setUploadFor] = useState<string | null>(null);
+  const [materialsFor, setMaterialsFor] = useState<string | null>(null);
   const [uploadTitle, setUploadTitle] = useState("");
 
-  // Class mastery distribution — same ladder language as the student view.
-  const distribution = LEVELS.map((lvl) => ({
-    level: lvl,
-    count: STUDENTS.filter((s) => masteryLevel(s.avg, true) === lvl).length,
-  }));
-  const totalStudents = STUDENTS.length;
+  const gaps = useMemo(
+    () => course.topics.filter((t) => t.pct < 65).sort((a, b) => a.pct - b.pct),
+    [course],
+  );
+  const flagged = (pct: number) => Math.round((course.enrolled * (100 - pct)) / 100);
 
-  // Topics ranked most → least problematic.
-  const ranked = [...course.topics]
-    .filter((t) => t.evidence > 0)
-    .sort((a, b) => a.pct - b.pct);
-  const coverageGaps = course.topics.filter((t) => approvedMaterials(t) === 0);
+  const misList = useMemo(
+    () => MISCONCEPTIONS.filter((m) => course.topics.some((t) => t.id === m.topicId)).sort((a, b) => b.prevalence - a.prevalence),
+    [course],
+  );
+  const addressed = useMemo(
+    () => new Set(mod.remedial.filter((r) => r.status === "published" && r.misconceptionId).map((r) => r.misconceptionId)),
+    [mod.remedial],
+  );
 
-  // Bounded attention list: multiple gaps OR a clear decline — never the roster.
-  const attention = STUDENTS.filter((s) => s.gaps.length >= 2 || s.trend === "declining").slice(0, 5);
+  const attention = useMemo(
+    () => STUDENTS.filter((s) => s.avg < 40 && s.gaps.some((g) => course.topics.some((t) => t.id === g))).sort((a, b) => a.avg - b.avg),
+    [course],
+  );
+  const needAttention = useMemo(
+    () => STUDENTS.reduce((sum, s) => sum + s.gaps.filter((g) => { const t = course.topics.find((x) => x.id === g); return t && t.pct < 40; }).length, 0),
+    [course],
+  );
 
-  const trendColor = (t: StudentInfo["trend"]) => (t === "improving" ? tokens.mastered : t === "declining" ? tokens.gap : tokens.developing);
-  const trendLabel = (t: StudentInfo["trend"]) => (t === "improving" ? (lang === "ar" ? "يتحسن" : "Improving") : t === "declining" ? (lang === "ar" ? "يتراجع" : "Declining") : (lang === "ar" ? "مستقر" : "Stable"));
+  const coverage = course.topics.filter((t) => approvedMaterials(t) === 0);
+  const sessions = COURSE_SESSIONS[course.id] ?? 0;
+  const materialsTopic = course.topics.find((t) => t.id === materialsFor);
 
-  const uploadTopic = course.topics.find((t) => t.id === uploadFor);
+  const mono = (t: string, extra?: React.CSSProperties) => (
+    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, ...extra }}>{t}</div>
+  );
+
+  const exportReport = () => {
+    const lines = [
+      `Course analytics snapshot — ${course.id} (${course.title.en})`,
+      `Precomputed as of ${fmtWhen(mod.analyticsAsOf, "en")} — instructor: ${course.instructor}`,
+      ``,
+      `Students enrolled: ${course.enrolled}`,
+      `Average mastery (all topics): ${course.overall}%`,
+      `Topic-level gaps below 40%: ${needAttention}`,
+      `AI tutor sessions this semester: ${sessions}`,
+      `Distinct diagnosed misconceptions: ${misList.length}`,
+      ``,
+      `Class-wide topic gaps (ranked by severity):`,
+      ...gaps.map((t) => `  - ${t.label.en}: ${t.pct}% mastery, ${flagged(t.pct)} students flagged${t.pct < 40 ? " [critical]" : ""}`),
+      ``,
+      `Common misconceptions (by prevalence):`,
+      ...misList.map((m) => `  - ${m.text}: ${m.prevalence} students (${m.citation})${addressed.has(m.id) ? " [addressed]" : ""}`),
+      ``,
+      `Students requiring attention (avg mastery < 40%):`,
+      ...attention.map((s) => `  - ${s.name} (${s.studentNumber}): ${s.avg}% — gaps: ${s.gaps.join(", ") || "—"} — ${s.sessions} AI sessions`),
+      ``,
+      `Material coverage alerts:`,
+      ...(coverage.length ? coverage.map((t) => `  - ${t.label.en}: 0 approved materials`) : ["  - none"]),
+    ].join("\n");
+    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${course.id}-analytics-snapshot.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast(lang === "ar" ? "تم تصدير تقرير اللقطة التحليلية." : "Analytics snapshot report exported.");
+  };
+
+  const trendPill = (t: string) => {
+    const map: Record<string, { bg: string; fg: string; label: string; labelAr: string }> = {
+      improving: { bg: tokens.primaryLight, fg: tokens.primary, label: "Improving", labelAr: "يتحسن" },
+      stable: { bg: tokens.inset, fg: tokens.textMuted, label: "Stable", labelAr: "مستقر" },
+      declining: { bg: tokens.gapBg, fg: tokens.gap, label: "Declining", labelAr: "متراجع" },
+    };
+    const m = map[t] ?? map.stable;
+    return (
+      <span style={{ fontFamily: MONO, fontSize: 10, color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px" }}>
+        {lang === "ar" ? m.labelAr : m.label}
+      </span>
+    );
+  };
 
   return (
-    <>
-      {/* Header + freshness */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
         <div style={{ textAlign: isRtl ? "right" : "left" }}>
-          <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 19, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px" }}>
-            {lang === "ar" ? "تحليلات المقرر" : "Course analytics"}
+          <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 20, color: tokens.textPrimary, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+            {lang === "ar" ? "تحليلات المقرر" : "Course Analytics"}
           </h2>
-          <p style={{ fontSize: 12.5, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
-            {course.instructor} · {lang === "ar" ? `الأسبوع ${course.week}` : `Week ${course.week}`}
-          </p>
-        </div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 11px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8 }}>
-          <IconClock size={12} color={tokens.textMuted} />
-          <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted, letterSpacing: "0.04em" }}>
-            {lang === "ar" ? "محسوب مسبقاً حتى" : "PRECOMPUTED AS OF"} {fmtWhen(mod.analyticsAsOf, lang)}
-          </span>
-        </div>
-      </div>
-
-      {/* Stat row — established visual language */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 18 }}>
-        <StatTile label={lang === "ar" ? "الطلاب" : "Students"} value={`${course.enrolled}`} sub={lang === "ar" ? "مسجّلون" : "enrolled"} tokens={tokens} headFont={hFont} bodyFont={bFont} />
-        <StatTile label={lang === "ar" ? "متوسط الإتقان" : "Avg. mastery"} value={`${course.overall}%`} sub={lang === "ar" ? "كل المواضيع" : "all topics"} mono accent={masteryColor(masteryLevel(course.overall, true), tokens)} tokens={tokens} headFont={hFont} bodyFont={bFont} />
-        <StatTile label={lang === "ar" ? "يحتاجون انتباهاً" : "Need attention"} value={`${attention.length}`} sub={lang === "ar" ? "فجوات متعددة أو تراجع" : "multiple gaps or decline"} accent={tokens.gap} tokens={tokens} headFont={hFont} bodyFont={bFont} />
-        <StatTile label={lang === "ar" ? "مواضيع مشكلة" : "Problematic topics"} value={`${ranked.filter((t) => t.pct <= 60).length}`} sub={lang === "ar" ? "إتقان ≤ 60%" : "mastery ≤ 60%"} accent={tokens.developing} tokens={tokens} headFont={hFont} bodyFont={bFont} />
-        <StatTile label={lang === "ar" ? "فجوات تغطية" : "Coverage gaps"} value={`${coverageGaps.length}`} sub={lang === "ar" ? "بلا مادة معتمدة" : "zero approved material"} accent={coverageGaps.length ? tokens.gap : tokens.mastered} tokens={tokens} headFont={hFont} bodyFont={bFont} />
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        {/* Class mastery distribution */}
-        <Card tokens={tokens}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-              {lang === "ar" ? "توزيع إتقان الدفعة" : "Class mastery distribution"}
-            </div>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "نفس سلّم إتقان الطالب" : "same ladder as student view"}</span>
+          <div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textSecondary }}>
+            {course.id} · {lang === "ar" ? course.title.ar : course.title.en} · {course.instructor} · {lang === "ar" ? `الأسبوع ${course.week} من ${course.weeksTotal}` : `Week ${course.week} of ${course.weeksTotal}`}
           </div>
-          {distribution.map((d) => {
-            const color = masteryColor(d.level, tokens);
-            const pct = Math.round((d.count / totalStudents) * 100);
-            return (
-              <div key={d.level} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <div style={{ width: 96, flexShrink: 0, textAlign: isRtl ? "right" : "left" }}>
-                  <MasteryPill level={d.level} tokens={tokens} lang={lang} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ height: 7, background: tokens.inset, borderRadius: 4, overflow: "hidden", border: `1px solid ${tokens.insetBorder}` }}>
-                    <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 4, transition: "width 0.8s ease-out" }} />
+          <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 5 }}>
+            {lang === "ar" ? `لقطة محسوبة مسبقاً · بتاريخ ${fmtWhen(mod.analyticsAsOf, lang)}` : `Precomputed snapshot · as of ${fmtWhen(mod.analyticsAsOf, lang)}`}
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={exportReport}>
+            <IconDownload size={13} color={tokens.textMuted} />
+            {lang === "ar" ? "تصدير التقرير" : "Export Report"}
+          </Btn>
+          <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setRemedialEntry({ courseId: course.id, topicId: gaps[0]?.id ?? course.topics[0]?.id ?? "" })}>
+            <IconSparkle size={13} color={tokens.primary} />
+            {lang === "ar" ? "توليد محتوى" : "Generate Content"}
+          </Btn>
+        </div>
+      </div>
+
+      {/* Stat tiles */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
+        {[
+          { label: lang === "ar" ? "الطلاب" : "STUDENTS", value: `${course.enrolled}`, sub: lang === "ar" ? "مسجلون" : "Enrolled", color: tokens.textPrimary },
+          { label: lang === "ar" ? "متوسط الإتقان" : "AVG. MASTERY", value: `${course.overall}%`, sub: lang === "ar" ? "كل المواضيع" : "All topics", color: tokens.primary },
+          { label: lang === "ar" ? "يحتاج انتباهاً" : "NEED ATTENTION", value: `${needAttention}`, sub: lang === "ar" ? "إتقان < 40%" : "< 40% mastery", color: tokens.gap },
+          { label: lang === "ar" ? "جلسات الذكاء" : "AI SESSIONS", value: `${sessions}`, sub: lang === "ar" ? "هذا الفصل" : "This semester", color: tokens.textPrimary },
+          { label: lang === "ar" ? "مفاهيم خاطئة" : "MISCONCEPTIONS", value: `${misList.length}`, sub: lang === "ar" ? "مميزة ومشخّصة" : "Distinct, diagnosed", color: tokens.gap },
+        ].map((t) => (
+          <div key={t.label} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "16px 18px" }}>
+            {mono(t.label, { marginBottom: 8 })}
+            <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 26, color: t.color, letterSpacing: "-0.03em", marginBottom: 3 }}>{t.value}</div>
+            <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>{t.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Gaps + misconceptions */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+        <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+              {lang === "ar" ? "فجوات المواضيع على مستوى الدفعة" : "Class-Wide Topic Gaps"}
+            </div>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "مرتبة بالخطورة" : "ranked by severity"}</span>
+          </div>
+          {gaps.length === 0 ? (
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا فجوات مواضيع تحت 65%." : "No topic gaps below 65%."}</div>
+          ) : (
+            gaps.map((t, i) => (
+              <div key={t.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "11px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", gap: 7, alignItems: "center", fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary, marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    {t.pct < 40 && <IconWarning size={13} color={tokens.gap} />}
+                    {lang === "ar" ? t.label.ar : t.label.en}
                   </div>
-                </div>
-                <div style={{ width: 74, flexShrink: 0, textAlign: isRtl ? "left" : "right" }}>
-                  <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color }}>{d.count}</span>
-                  <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}> · {pct}%</span>
-                </div>
-              </div>
-            );
-          })}
-          <div style={{ marginTop: 12, padding: "9px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, fontFamily: bFont, fontSize: 11, color: tokens.textMuted, lineHeight: 1.55 }}>
-            {lang === "ar"
-              ? "مجمّع من خرائط الإتقان الفردية ويُحدَّث عند اعتماد الدرجات أو نشر محتوى علاجي."
-              : "Aggregated from individual mastery maps; refreshed when grades are finalized or remedial content is published."}
-          </div>
-        </Card>
-
-        {/* Ranked problematic topics */}
-        <Card tokens={tokens}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-              {lang === "ar" ? "المواضيع من الأكثر للأقل مشكلة" : "Topics, most → least problematic"}
-            </div>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "مرتّب بالشدة" : "ranked by severity"}</span>
-          </div>
-          {ranked.map((t, i) => {
-            const level = masteryLevel(t.pct, true);
-            const color = masteryColor(level, tokens);
-            return (
-              <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 0", borderBottom: i < ranked.length - 1 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <span style={{ width: 20, height: 20, borderRadius: 6, background: masteryBg(level, tokens), color, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 10, fontWeight: 700, flexShrink: 0 }}>
-                  {i + 1}
-                </span>
-                <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
-                  <div style={{ fontFamily: bFont, fontSize: 12, fontWeight: 500, color: tokens.textPrimary, marginBottom: 4 }}>{lang === "ar" ? t.label.ar : t.label.en}</div>
                   <MasteryBar pct={t.pct} evidence={t.evidence} thin tokens={tokens} />
                 </div>
-                <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color, width: 40, textAlign: isRtl ? "left" : "right", flexShrink: 0 }}>{t.pct}%</span>
-                <Btn tokens={tokens} lang={lang} variant="violet" onClick={() => setRemedialEntry({ courseId: course.id, topicId: t.id })} style={{ padding: "4px 9px", fontSize: 10.5, flexShrink: 0 }}>
-                  <IconSparkle size={11} color={tokens.gap} />
-                  {lang === "ar" ? "محتوى علاجي" : "Remedial"}
+                <div style={{ textAlign: "right", flexShrink: 0, width: 74 }}>
+                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: masteryColor(masteryLevel(t.pct, t.evidence > 0), tokens) }}>{t.pct}%</div>
+                  <div style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textMuted }}>{flagged(t.pct)} {lang === "ar" ? "طالباً" : "students"}</div>
+                </div>
+                <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5, flexShrink: 0 }}
+                  onClick={() => setRemedialEntry({ courseId: course.id, topicId: t.id })}>
+                  {lang === "ar" ? "توليد" : "Generate"}
                 </Btn>
-              </div>
-            );
-          })}
-        </Card>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16, marginBottom: 16 }}>
-        {/* Students requiring attention — bounded */}
-        <Card tokens={tokens} style={{ padding: 0, overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${tokens.cardBorder}`, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>
-              {lang === "ar" ? "طلاب يحتاجون انتباهاً" : "Students requiring attention"}
-            </div>
-            <Chip tokens={tokens} tone="violet">{lang === "ar" ? "فجوات متعددة أو تراجع واضح — ليس القائمة الكاملة" : "multiple gaps or clear decline — not the full roster"}</Chip>
-          </div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "Student"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الإتقان" : "Mastery"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الفجوات" : "Gaps"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "Trend"}</Th>
-                <Th tokens={tokens} align="right"></Th>
-              </tr>
-            </thead>
-            <tbody>
-              {attention.map((s, i) => {
-                const level = masteryLevel(s.avg, true);
-                const color = masteryColor(level, tokens);
-                return (
-                  <tr key={s.id} style={{ borderBottom: i < attention.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
-                    <td style={{ padding: "10px 16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                        <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: hFont, fontWeight: 700, fontSize: 9.5, color: tokens.primary, flexShrink: 0 }}>
-                          {s.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
-                        </span>
-                        <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary }}>{s.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 46, height: 4, background: tokens.inset, borderRadius: 2, overflow: "hidden" }}>
-                          <div style={{ height: "100%", width: `${s.avg}%`, background: color, borderRadius: 2 }} />
-                        </div>
-                        <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color }}>{s.avg}%</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "10px 16px" }}>
-                      <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted }}>{s.gaps.length} {lang === "ar" ? "فجوات" : "gaps"}</span>
-                    </td>
-                    <td style={{ padding: "10px 16px" }}>
-                      <span style={{ fontFamily: MONO, fontSize: 9.5, color: trendColor(s.trend), background: `${trendColor(s.trend)}18`, border: `1px solid ${trendColor(s.trend)}44`, borderRadius: 4, padding: "2px 7px" }}>
-                        {trendLabel(s.trend)}
-                      </span>
-                    </td>
-                    <td style={{ padding: "10px 16px", textAlign: "right" }}>
-                      <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => { setAuthFor(s); setAuthorized(false); }} style={{ padding: "4px 9px", fontSize: 10.5 }}>
-                        {lang === "ar" ? "فتح" : "Open"}
-                      </Btn>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Card>
-
-        {/* Material coverage alerts */}
-        <Card tokens={tokens}>
-          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, marginBottom: 12 }}>
-            {lang === "ar" ? "تنبيهات تغطية المواد" : "Material coverage alerts"}
-          </div>
-          {coverageGaps.length === 0 ? (
-            <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, lineHeight: 1.6 }}>
-              {lang === "ar" ? "كل مواضيع هذا المقرر لديها مادة معتمدة واحدة على الأقل." : "Every topic in this course has at least one approved material."}
-            </div>
-          ) : (
-            coverageGaps.map((t) => (
-              <div key={t.id} style={{ marginBottom: 10 }}>
-                <AlertStrip
-                  tokens={tokens}
-                  lang={lang}
-                  tone="violet"
-                  icon={<IconWarning size={13} color={tokens.gap} />}
-                  title={lang === "ar" ? `صفر مادة معتمدة: ${t.label.ar}` : `Zero approved material: ${t.label.en}`}
-                  body={lang === "ar"
-                    ? "التقييم والمعلم الذكي لا يستطيعان الاستناد لهذا الموضوع."
-                    : "Evaluation and the AI tutor cannot ground this topic."}
-                  action={
-                    <Btn tokens={tokens} lang={lang} variant="violet" onClick={() => { setUploadFor(t.id); setUploadTitle(""); }} style={{ padding: "5px 10px", fontSize: 11 }}>
-                      <IconUpload size={11} color={tokens.gap} />
-                      {lang === "ar" ? "ارفع مادة" : "Upload material"}
-                    </Btn>
-                  }
-                />
               </div>
             ))
           )}
-          <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${tokens.cardBorder}`, fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
-            {lang === "ar"
-              ? "تنبيه وقائي: يظهر قبل أن يختبره الطلاب كعجز في المعلم الذكي."
-              : "A preventive alert: it surfaces before students experience it as the tutor being unable to answer."}
+        </Card>
+
+        <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+              {lang === "ar" ? "المفاهيم الخاطئة الشائعة" : "Common Misconceptions"}
+            </div>
+            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "بالانتشار" : "by prevalence"}</span>
           </div>
+          {misList.length === 0 ? (
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا مفاهيم خاطئة مشخّصة في هذا المقرر." : "No diagnosed misconceptions in this course."}</div>
+          ) : (
+            misList.map((m, i) => (
+              <div key={m.id} style={{ padding: "11px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <div style={{ minWidth: 0, flex: 1, textAlign: isRtl ? "right" : "left" }}>
+                    <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 5, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <Chip tokens={tokens} tone="peri">{m.tag}</Chip>
+                      {addressed.has(m.id) && <span style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textFaint }}>{lang === "ar" ? "عولج" : "addressed"}</span>}
+                    </div>
+                    <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary, lineHeight: 1.5, marginBottom: 6 }}>{m.text}</div>
+                    <CitationChip label={m.citation} tokens={tokens} />
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                    <div>
+                      <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 18, color: tokens.gap, letterSpacing: "-0.02em" }}>{m.prevalence}</div>
+                      <div style={{ fontFamily: bFont, fontSize: 10, color: tokens.textMuted }}>{lang === "ar" ? "طالباً" : "students"}</div>
+                    </div>
+                    <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }}
+                      onClick={() => setRemedialEntry({ courseId: course.id, topicId: m.topicId, misconceptionId: m.id })}>
+                      {lang === "ar" ? "توليد" : "Generate"}
+                    </Btn>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </Card>
       </div>
 
-      {/* Student authorization modal (FR-ANALYTICS-05) */}
-      <Modal
-        open={authFor !== null}
-        onClose={() => setAuthFor(null)}
-        tokens={tokens}
-        lang={lang}
-        width={520}
-        title={authFor ? authFor.name : ""}
-        subtitle={lang === "ar"
-          ? "فتح سجل طالب فردي يتطلب تفويض المدرّس على مستوى المقرر — نفس التفويض المفروض في بقية المنصة."
-          : "Opening an individual student record requires the same course-scoped instructor authorization enforced elsewhere on the platform."}
-      >
-        {!authorized ? (
-          <div>
-            <AlertStrip
-              tokens={tokens}
-              lang={lang}
-              tone="peri"
-              icon={<IconLock size={13} color={tokens.developing} />}
-              title={lang === "ar" ? "التفويض مطلوب" : "Authorization required"}
-              body={lang === "ar"
-                ? `أنت مخوّل كمدرّس لـ ${course.id}. تأكيد التفويض يسجّل دخولك إلى سجل الطالب.`
-                : `You are staff on ${course.id}. Confirming logs your entry into this student record.`}
-            />
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
-              <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setAuthFor(null)}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
-              <Btn tokens={tokens} lang={lang} onClick={() => setAuthorized(true)}>
-                <IconLock size={13} color="#fff" />
-                {lang === "ar" ? "تأكيد التفويض وفتح السجل" : "Confirm authorization"}
+      {/* Attention table */}
+      <Card tokens={tokens} style={{ padding: "18px 20px", marginBottom: 18 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+            {lang === "ar" ? "طلاب يحتاجون انتباهاً" : "Students Requiring Attention"}
+          </div>
+          <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "3px 9px" }}>
+            {lang === "ar" ? `متوسط إتقان < 40% · ${attention.length} طلاب` : `avg. mastery < 40% · ${attention.length} students`}
+          </span>
+        </div>
+        {attention.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا طلاب تحت متوسط 40% حالياً." : "No students below 40% average mastery right now."}</div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "STUDENT"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الرقم" : "ID"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "متوسط الإتقان" : "AVG. MASTERY"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الفجوات الأساسية" : "PRIMARY GAPS"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "TREND"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "جلسات الذكاء" : "AI SESSIONS"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "إجراء" : "ACTION"}</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {attention.map((s, i) => (
+                <tr key={s.id} style={{ borderBottom: i < attention.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
+                  <td style={{ padding: "11px 10px" }}>
+                    <div style={{ display: "flex", gap: 9, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {s.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+                      </span>
+                      <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary }}>{s.name}</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>{s.studentNumber}</td>
+                  <td style={{ padding: "11px 10px", minWidth: 130 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div style={{ flex: 1 }}><MasteryBar pct={s.avg} evidence={1} thin tokens={tokens} /></div>
+                      <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(s.avg, true), tokens) }}>{s.avg}%</span>
+                    </div>
+                  </td>
+                  <td style={{ padding: "11px 10px", fontFamily: bFont, fontSize: 12, color: tokens.textSecondary }}>
+                    {s.gaps.map((g) => course.topics.find((t) => t.id === g)?.short ?? g).join(", ") || "—"}
+                  </td>
+                  <td style={{ padding: "11px 10px" }}>{trendPill(s.trend)}</td>
+                  <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
+                  <td style={{ padding: "11px 10px", textAlign: "right" }}>
+                    <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }}
+                      onClick={() => toast(lang === "ar" ? `خطة تدخل مُجدولة لـ${s.name}.` : `Intervention plan queued for ${s.name}.`)}>
+                      {lang === "ar" ? "تدخل" : "Intervene"}
+                    </Btn>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
+      {/* Coverage alerts */}
+      <Card tokens={tokens} style={{ padding: "18px 20px", marginBottom: 18 }}>
+        <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 12 }}>
+          {lang === "ar" ? "تنبيهات تغطية المواد" : "Material Coverage Alerts"}
+        </div>
+        {coverage.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>
+            {lang === "ar" ? "كل المواضيع لها مادة معتمدة واحدة على الأقل." : "Every topic has at least one approved material."}
+          </div>
+        ) : (
+          coverage.map((t, i) => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "11px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <IconWarning size={14} color={tokens.gap} />
+                {lang === "ar" ? t.label.ar : t.label.en}
+                <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>· 0 {lang === "ar" ? "معتمد" : "approved"}</span>
+              </div>
+              <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "7px 14px", fontSize: 11.5 }} onClick={() => { setMaterialsFor(t.id); setUploadTitle(""); }}>
+                {lang === "ar" ? "فتح المواد" : "Open materials"}
               </Btn>
             </div>
-          </div>
-        ) : authFor ? (
-          <div>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <Chip tokens={tokens} tone="primary">{course.id}</Chip>
-              <Chip tokens={tokens}>{authFor.sessions} {lang === "ar" ? "جلسات ذكاء اصطناعي" : "AI sessions"}</Chip>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: trendColor(authFor.trend), background: `${trendColor(authFor.trend)}18`, border: `1px solid ${trendColor(authFor.trend)}44`, borderRadius: 4, padding: "3px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                <IconTrendUp size={10} color={trendColor(authFor.trend)} />
-                {trendLabel(authFor.trend)}
-              </span>
-            </div>
-            {course.topics.map((t) => {
-              const isGap = authFor.gaps.includes(t.id);
-              const pct = isGap ? Math.max(8, t.pct - 18) : Math.min(96, t.pct + 12);
-              const level = masteryLevel(pct, true);
-              return (
-                <div key={t.id} style={{ marginBottom: 10 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      {isGap && <IconWarning size={11} color={tokens.gap} />}
-                      {lang === "ar" ? t.label.ar : t.label.en}
-                    </span>
-                    <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: masteryColor(level, tokens) }}>{pct}%</span>
-                  </div>
-                  <MasteryBar pct={pct} evidence={1} thin tokens={tokens} />
-                </div>
-              );
-            })}
-            <div style={{ marginTop: 12 }}>
-              <CitationChip label={lang === "ar" ? "سجل دخول المفوّض مسجّل" : "authorized access logged"} tokens={tokens} />
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+          ))
+        )}
+      </Card>
 
-      {/* Direct upload for a flagged topic */}
-      <Modal
-        open={uploadFor !== null}
-        onClose={() => setUploadFor(null)}
-        tokens={tokens}
-        lang={lang}
-        title={lang === "ar" ? `رفع مادة — ${uploadTopic ? uploadTopic.label.ar : ""}` : `Upload material — ${uploadTopic ? uploadTopic.label.en : ""}`}
-        subtitle={lang === "ar" ? "تُزال فجوة التغطية بعد اعتماد المادة." : "The coverage gap clears once the material is approved."}
-      >
-        <Field label={lang === "ar" ? "عنوان المادة" : "Material title"} tokens={tokens} lang={lang} required>
-          <input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} style={inputStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "مثال: المحاضرة 9 — ديكسترا" : "e.g. Lecture 9 — Dijkstra"} />
-        </Field>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setUploadFor(null)}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
-          <Btn tokens={tokens} lang={lang} disabled={!uploadTitle.trim()} onClick={() => { if (uploadFor) addMaterial(course.id, uploadFor, uploadTitle.trim()); setUploadFor(null); }}>
-            <IconUpload size={13} color="#fff" />
-            {lang === "ar" ? "رفع" : "Upload"}
-          </Btn>
+      {/* Mastery distribution */}
+      <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+        <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 14 }}>
+          {lang === "ar" ? "توزيع الإتقان على مستوى المقرر" : "Course-Wide Mastery Distribution"}
         </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+          {gaps.map((t) => {
+            const level = masteryLevel(t.pct, t.evidence > 0);
+            return (
+              <div key={t.id} style={{ background: masteryBg(level, tokens), border: `1px solid ${masteryColor(level, tokens)}33`, borderRadius: 10, padding: "14px 12px", textAlign: "center" }}>
+                <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 20, color: masteryColor(level, tokens), letterSpacing: "-0.02em", marginBottom: 4 }}>{t.pct}%</div>
+                <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textPrimary, marginBottom: 3 }}>{lang === "ar" ? t.label.ar : t.label.en}</div>
+                <div style={{ fontFamily: bFont, fontSize: 10, color: tokens.textMuted }}>{flagged(t.pct)} {lang === "ar" ? "مُعلَّم" : "flagged"}</div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* Materials modal (coverage follow-up) */}
+      <Modal open={materialsFor !== null} onClose={() => setMaterialsFor(null)} tokens={tokens} lang={lang} width={520}
+        title={lang === "ar" ? `مواد الموضوع — ${materialsTopic?.label.ar ?? ""}` : `Topic materials — ${materialsTopic?.label.en ?? ""}`}
+        subtitle={lang === "ar" ? "المسودات غير مرئية للطلاب حتى الاعتماد." : "Uploads stay pending until you approve them."}>
+        {materialsTopic && (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+              {materialsTopic.materials.length === 0 && (
+                <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا مواد مرفوعة بعد." : "No materials uploaded yet."}</div>
+              )}
+              {materialsTopic.materials.map((m) => (
+                <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <span style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary }}>{m.title}</span>
+                  {m.status === "approved" ? (
+                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontFamily: MONO, fontSize: 10, color: tokens.mastered }}>
+                      <IconCheck size={12} color={tokens.mastered} /> {lang === "ar" ? "معتمد" : "APPROVED"}
+                    </span>
+                  ) : (
+                    <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "5px 12px", fontSize: 11 }}
+                      onClick={() => { approveMaterial(course.id, materialsTopic.id, m.id); toast(lang === "ar" ? `اعتُمدت المادة: ${m.title}` : `Material approved: ${m.title}`); }}>
+                      {lang === "ar" ? "اعتماد" : "Approve"}
+                    </Btn>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} placeholder={lang === "ar" ? "عنوان المادة الجديدة" : "New material title"} style={{ ...inputStyle(tokens, bFont), flex: 1 }} className="genai-input" />
+              <Btn tokens={tokens} lang={lang} disabled={!uploadTitle.trim()}
+                onClick={() => { addMaterial(course.id, materialsTopic.id, uploadTitle.trim()); setUploadTitle(""); toast(lang === "ar" ? "رُفعت المادة كمسودة بانتظار الاعتماد." : "Material uploaded as pending approval."); }}>
+                <IconUpload size={13} color="#fff" /> {lang === "ar" ? "رفع" : "Upload"}
+              </Btn>
+            </div>
+          </>
+        )}
       </Modal>
 
-      <RemedialPanel open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} tokens={tokens} lang={lang} entry={remedialEntry} />
-    </>
+      <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
+    </div>
   );
 }

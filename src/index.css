@@ -158,3 +158,18 @@ body * {
 @media (prefers-reduced-motion: reduce) {
   .genai-drawer { animation: none !important; }
 }
+
+/* toast / modal entrance */
+@keyframes genai-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* visible keyboard focus everywhere (UX a11y pass) */
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--genai-focus, #1B4DA8);
+  outline-offset: 2px;
+}

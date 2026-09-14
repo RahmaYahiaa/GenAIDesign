@@ -20,6 +20,8 @@ export interface MaterialItem {
 
 export interface TopicInfo {
   id: string;
+  /** Short label for analytics chips / gap columns. */
+  short: string;
   label: L;
   pct: number;            // class mastery on this topic (precomputed)
   evidence: number;
@@ -124,7 +126,11 @@ export interface MisconceptionDef {
   topicId: string;
   markers: string[];      // phrases the evaluation scans student answers for
   /** Course-wide prevalence shown on analytics ("by prevalence"). */
-  prevalence?: number;
+  prevalence: number;
+  /** Short topic tag shown on the analytics misconception card. */
+  tag: string;
+  /** Grounded citation for the diagnosis (lecture reference). */
+  citation: string;
 }
 
 export interface StudentInfo {
@@ -205,21 +211,21 @@ export const COURSES: CourseInfo[] = [
     title: { en: "Data Structures & Algorithms", ar: "هياكل البيانات والخوارزميات" },
     isPersonal: false, week: 9, weeksTotal: 15, enrolled: 47, instructor: INSTRUCTOR_NAME, overall: 54,
     topics: [
-      { id: "bst", label: { en: "Binary Trees & BST", ar: "الأشجار الثنائية وBST" }, pct: 36, evidence: 24,
+      { id: "bst", short: "Binary Trees", label: { en: "Binary Trees & BST", ar: "الأشجار الثنائية وBST" }, pct: 36, evidence: 24,
         materials: [mat("mat-bst1", "Lecture 5 §1 — BST invariant"), mat("mat-bst2", "Lecture 5 §3 — Traversals")] },
-      { id: "avl", label: { en: "Binary Tree Balancing (AVL)", ar: "موازنة الأشجار (AVL)" }, pct: 36, evidence: 24,
+      { id: "avl", short: "AVL Balancing", label: { en: "Binary Tree Balancing (AVL)", ar: "موازنة الأشجار (AVL)" }, pct: 36, evidence: 24,
         materials: [mat("mat-avl1", "Lecture 5 §5 — Rotations")] },
-      { id: "bfs", label: { en: "BFS / Graph Traversal", ar: "اجتياز الرسوم — BFS" }, pct: 74, evidence: 8,
+      { id: "bfs", short: "BFS", label: { en: "BFS / Graph Traversal", ar: "اجتياز الرسوم — BFS" }, pct: 74, evidence: 8,
         materials: [mat("mat-bfs1", "Lecture 6 §2 — Queue-based traversal")] },
-      { id: "dfs", label: { en: "DFS & Cycle Detection", ar: "DFS وكشف الدورات" }, pct: 44, evidence: 17,
+      { id: "dfs", short: "DFS", label: { en: "DFS & Cycle Detection", ar: "DFS وكشف الدورات" }, pct: 44, evidence: 17,
         materials: [mat("mat-dfs1", "Lecture 6 §4 — Back edges")] },
-      { id: "graphs", label: { en: "Graph Representation", ar: "تمثيل الرسوم" }, pct: 63, evidence: 6,
+      { id: "graphs", short: "Graphs", label: { en: "Graph Representation", ar: "تمثيل الرسوم" }, pct: 63, evidence: 6,
         materials: [mat("mat-gr1", "Lecture 6 §1 — Adjacency models")] },
-      { id: "hash", label: { en: "Hash Table Internals", ar: "داخل جداول التجزئة" }, pct: 29, evidence: 31,
+      { id: "hash", short: "Hash Tables", label: { en: "Hash Table Internals", ar: "داخل جداول التجزئة" }, pct: 29, evidence: 31,
         materials: [mat("mat-h1", "Lecture 7 — Collision resolution")] },
-      { id: "dp", label: { en: "Dynamic Programming", ar: "البرمجة الديناميكية" }, pct: 51, evidence: 11,
+      { id: "dp", short: "Dynamic Programming", label: { en: "Dynamic Programming", ar: "البرمجة الديناميكية" }, pct: 51, evidence: 11,
         materials: [mat("mat-dp1", "Lecture 8 — Substructure")] },
-      { id: "dijkstra", label: { en: "Dijkstra / Shortest Path", ar: "أقصر مسار — ديكسترا" }, pct: 22, evidence: 38, materials: [] },
+      { id: "dijkstra", short: "Dijkstra", label: { en: "Dijkstra / Shortest Path", ar: "أقصر مسار — ديكسترا" }, pct: 22, evidence: 38, materials: [] },
     ],
   },
   {
@@ -227,11 +233,11 @@ export const COURSES: CourseInfo[] = [
     title: { en: "Operating Systems", ar: "نظم التشغيل" },
     isPersonal: false, week: 7, weeksTotal: 15, enrolled: 52, instructor: INSTRUCTOR_NAME, overall: 61,
     topics: [
-      { id: "processes", label: { en: "Processes & PCB", ar: "العمليات وPCB" }, pct: 78, evidence: 9, materials: [mat("mat-p1", "Lecture 2 — Process model")] },
-      { id: "threads", label: { en: "Threads & Concurrency", ar: "الخيوط والتزامن" }, pct: 64, evidence: 7, materials: [mat("mat-t3", "Lecture 3 — Threads")] },
-      { id: "scheduling", label: { en: "CPU Scheduling", ar: "جدولة المعالج" }, pct: 49, evidence: 5, materials: [mat("mat-s1", "Lecture 4 — Scheduling criteria")] },
-      { id: "memory", label: { en: "Memory Management", ar: "إدارة الذاكرة" }, pct: 31, evidence: 3, materials: [mat("mat-m1", "Lecture 5 — Paging")] },
-      { id: "deadlocks", label: { en: "Deadlocks", ar: "الجمود" }, pct: 0, evidence: 0, materials: [] },
+      { id: "processes", short: "Processes", label: { en: "Processes & PCB", ar: "العمليات وPCB" }, pct: 78, evidence: 9, materials: [mat("mat-p1", "Lecture 2 — Process model")] },
+      { id: "threads", short: "Threads", label: { en: "Threads & Concurrency", ar: "الخيوط والتزامن" }, pct: 64, evidence: 7, materials: [mat("mat-t3", "Lecture 3 — Threads")] },
+      { id: "scheduling", short: "Scheduling", label: { en: "CPU Scheduling", ar: "جدولة المعالج" }, pct: 49, evidence: 5, materials: [mat("mat-s1", "Lecture 4 — Scheduling criteria")] },
+      { id: "memory", short: "Memory", label: { en: "Memory Management", ar: "إدارة الذاكرة" }, pct: 31, evidence: 3, materials: [mat("mat-m1", "Lecture 5 — Paging")] },
+      { id: "deadlocks", short: "Deadlocks", label: { en: "Deadlocks", ar: "الجمود" }, pct: 0, evidence: 0, materials: [] },
     ],
   },
   {
@@ -239,10 +245,10 @@ export const COURSES: CourseInfo[] = [
     title: { en: "Databases", ar: "قواعد البيانات" },
     isPersonal: false, week: 9, weeksTotal: 15, enrolled: 38, instructor: INSTRUCTOR_NAME, overall: 66,
     topics: [
-      { id: "relational", label: { en: "Relational Model", ar: "النموذج العلائقي" }, pct: 72, evidence: 10, materials: [mat("mat-r1", "Lecture 2 — Relations")] },
-      { id: "sql", label: { en: "SQL & Joins", ar: "SQL والوصلات" }, pct: 68, evidence: 9, materials: [mat("mat-sql1", "Lecture 3 — SQL")] },
-      { id: "indexing", label: { en: "Indexing & B+ Trees", ar: "الفهارس وأشجار B+" }, pct: 57, evidence: 6, materials: [mat("mat-i1", "Lecture 5 — Indexes")] },
-      { id: "normalization", label: { en: "Normalization", ar: "التطبيع" }, pct: 61, evidence: 7, materials: [mat("mat-n1", "Lecture 6 — Normal forms")] },
+      { id: "relational", short: "Relational Model", label: { en: "Relational Model", ar: "النموذج العلائقي" }, pct: 72, evidence: 10, materials: [mat("mat-r1", "Lecture 2 — Relations")] },
+      { id: "sql", short: "SQL & Joins", label: { en: "SQL & Joins", ar: "SQL والوصلات" }, pct: 68, evidence: 9, materials: [mat("mat-sql1", "Lecture 3 — SQL")] },
+      { id: "indexing", short: "Indexing", label: { en: "Indexing & B+ Trees", ar: "الفهارس وأشجار B+" }, pct: 57, evidence: 6, materials: [mat("mat-i1", "Lecture 5 — Indexes")] },
+      { id: "normalization", short: "Normalization", label: { en: "Normalization", ar: "التطبيع" }, pct: 61, evidence: 7, materials: [mat("mat-n1", "Lecture 6 — Normal forms")] },
     ],
   },
   {
@@ -252,11 +258,14 @@ export const COURSES: CourseInfo[] = [
     title: { en: "Self-Study · Linear Algebra Foundations", ar: "دراسة ذاتية · أساسات الجبر الخطي" },
     isPersonal: true, week: 4, weeksTotal: 10, enrolled: 1, instructor: "—", overall: 52,
     topics: [
-      { id: "vectors", label: { en: "Vectors & Span", ar: "المتجهات والفضاء" }, pct: 61, evidence: 5, materials: [] },
-      { id: "matrices", label: { en: "Matrix Operations", ar: "عمليات المصفوفات" }, pct: 44, evidence: 3, materials: [] },
+      { id: "vectors", short: "Vectors", label: { en: "Vectors & Span", ar: "المتجهات والفضاء" }, pct: 61, evidence: 5, materials: [] },
+      { id: "matrices", short: "Matrices", label: { en: "Matrix Operations", ar: "عمليات المصفوفات" }, pct: 44, evidence: 3, materials: [] },
     ],
   },
 ];
+
+/** Precomputed AI-tutor session totals per course (analytics snapshot input). */
+export const COURSE_SESSIONS: Record<string, number> = { CS301: 312, CS401: 188, CS303: 96, LIN101: 14 };
 
 export const INSTRUCTOR_COURSE_IDS = ["CS301", "CS401", "CS303"];
 export const STUDENT_INSTITUTIONAL_IDS = ["CS301", "CS401"];
@@ -271,21 +280,22 @@ export const STUDENTS: StudentInfo[] = [
   { id: "st-omar", name: "Omar Khaled", studentNumber: "202340512", avg: 62, trend: "improving", gaps: ["avl"], sessions: 6 },
   { id: "st-youssef", name: "Youssef Nasser", studentNumber: "202341266", avg: 58, trend: "stable", gaps: ["dp"], sessions: 3 },
   { id: "st-mariam", name: "Mariam Adel", studentNumber: "202339870", avg: 44, trend: "stable", gaps: ["bst"], sessions: 2 },
-  { id: "st-karim", name: "Karim Fathi", studentNumber: "202343118", avg: 25, trend: "declining", gaps: ["bst", "hash"], sessions: 1 },
+  { id: "st-karim", name: "Karim Fathi", studentNumber: "202343118", avg: 42, trend: "declining", gaps: ["bst", "hash"], sessions: 1 },
   { id: "st-hana", name: "Hana Saeed", studentNumber: "202337654", avg: 71, trend: "improving", gaps: [], sessions: 7 },
-  { id: "st-tarek", name: "Tarek Aziz", studentNumber: "202342901", avg: 39, trend: "stable", gaps: ["bst"], sessions: 2 },
+  { id: "st-tarek", name: "Tarek Aziz", studentNumber: "202342901", avg: 41, trend: "stable", gaps: ["bst"], sessions: 2 },
   { id: DEMO_STUDENT_ID, name: "Sarah Al-Rashidi", studentNumber: "202341872", avg: 57, trend: "improving", gaps: ["hash"], sessions: 23 },
 ];
 
 export const MISCONCEPTIONS: MisconceptionDef[] = [
-  { id: "mc-bst-inorder", text: "Confuses in-order output with pre-order output", topicId: "bst", markers: ["pre-order", "preorder", "root first"] },
-  { id: "mc-bst-invariant", text: "Omits the invariant check after insert", topicId: "bst", markers: ["without checking", "no check", "skip the check"] },
-  { id: "mc-bfs-stack", text: "Belief that BFS uses a stack rather than a queue", topicId: "bfs", markers: ["stack"], prevalence: 24 },
-  { id: "mc-dijkstra-negative", text: "Dijkstra's algorithm works correctly with negative edge weights", topicId: "dijkstra", markers: ["negative"], prevalence: 19 },
-  { id: "mc-hash-chaining", text: "Worst-case of separate chaining is O(1)", topicId: "hash", markers: ["chaining is o(1)", "constant worst"], prevalence: 17 },
-  { id: "mc-avl", text: "Confusing AVL and BST height invariants", topicId: "avl", markers: ["same invariant"], prevalence: 11 },
-  { id: "mc-graphs-v2", text: "All graph traversals are O(V²) regardless of representation", topicId: "graphs", markers: ["o(v²) always", "always quadratic"], prevalence: 9 },
-  { id: "mc-sched-quantum", text: "Assumes round-robin ignores the time quantum", topicId: "scheduling", markers: ["quantum does not matter", "ignores quantum"] },
+  { id: "mc-bst-inorder", text: "Confuses in-order output with pre-order output", topicId: "bst", markers: ["pre-order", "preorder", "root first"], prevalence: 7, tag: "BST", citation: "CS301 · Lec 5 §1" },
+  { id: "mc-bst-invariant", text: "Omits the invariant check after insert", topicId: "bst", markers: ["without checking", "no check", "skip the check"], prevalence: 4, tag: "BST", citation: "CS301 · Lec 5 §1" },
+  { id: "mc-bst-dup", text: "Believes inserting a duplicate key rotates the tree", topicId: "bst", markers: ["duplicate rotates", "rotates on duplicate"], prevalence: 3, tag: "BST", citation: "CS301 · Lec 5 §2" },
+  { id: "mc-bfs-stack", text: "Belief that BFS uses a stack rather than a queue", topicId: "bfs", markers: ["stack"], prevalence: 24, tag: "BFS", citation: "CS301 · Lec 6 §2" },
+  { id: "mc-dijkstra-negative", text: "Dijkstra's algorithm works correctly with negative edge weights", topicId: "dijkstra", markers: ["negative"], prevalence: 19, tag: "Dijkstra", citation: "CS301 · Lec 9 §3" },
+  { id: "mc-hash-chaining", text: "Worst-case of separate chaining is O(1)", topicId: "hash", markers: ["chaining is o(1)", "constant worst"], prevalence: 17, tag: "Hash Tables", citation: "CS301 · Lec 7 §4" },
+  { id: "mc-avl", text: "Confusing AVL and BST height invariants", topicId: "avl", markers: ["same invariant"], prevalence: 11, tag: "BST", citation: "CS301 · Lec 5 §3" },
+  { id: "mc-graphs-v2", text: "All graph traversals are O(V²) regardless of representation", topicId: "graphs", markers: ["o(v²) always", "always quadratic"], prevalence: 9, tag: "Graphs", citation: "CS301 · Lec 6 §1" },
+  { id: "mc-sched-quantum", text: "Assumes round-robin ignores the time quantum", topicId: "scheduling", markers: ["quantum does not matter", "ignores quantum"], prevalence: 6, tag: "Scheduling", citation: "CS401 · Lec 4 §2" },
 ];
 
 export const ASSIGNMENTS: AssignmentDef[] = [
@@ -419,11 +429,11 @@ export const SEED_UNITS: ReviewUnit[] = [
   ]),
   unit("u-bst-q1-mariam", "as-bst", "CS301", "q1", "st-mariam", "Mariam Adel", "awaiting_review", [
     att(1, "BST keeps things ordered. Inserting sorted numbers makes it unbalanced because everything piles on one side.", ago(27),
-      { aiScore: 5, confidence: "medium", feedback: "Captures the consequence but never states the ordering invariant formally.", misconceptions: [], sources: ["CS301 · Lec 5 §1"] }),
+      { aiScore: 5, confidence: "medium", feedback: "Captures the consequence but never states the ordering invariant formally.", misconceptions: ["mc-bst-inorder"], sources: ["CS301 · Lec 5 §1"] }),
   ]),
   unit("u-bst-q2-karim", "as-bst", "CS301", "q2", "st-karim", "Karim Fathi", "awaiting_review", [
     att(1, "The tree stays sorted somehow. Sorted data is fine because the tree rebalances itself.", ago(26),
-      { aiScore: 2, confidence: "insufficient_evidence", feedback: "Answer contradicts the grounded material (a plain BST does not rebalance) and is too thin to score against the rubric; manual review required.", misconceptions: ["mc-bst-invariant"], sources: [] }),
+      { aiScore: 2, confidence: "insufficient_evidence", feedback: "Answer contradicts the grounded material (a plain BST does not rebalance) and is too thin to score against the rubric; manual review required.", misconceptions: ["mc-bst-inorder", "mc-bst-invariant"], sources: [] }),
   ]),
   unit("u-bst-q1-hana", "as-bst", "CS301", "q1", "st-hana", "Hana Saeed", "final", [
     att(1, "50 → 30 → right of 30; invariant checked at each visit: left subtree keys < node key < right subtree keys, so the insert preserves order.", ago(44),
@@ -432,7 +442,7 @@ export const SEED_UNITS: ReviewUnit[] = [
   ]),
   unit("u-bst-q2-tarek", "as-bst", "CS301", "q2", "st-tarek", "Tarek Aziz", "final", [
     att(1, "Invariant: left smaller, right larger. Sorted insert is bad-ish because the tree gets tall.", ago(43),
-      { aiScore: 6, confidence: "high", feedback: "Invariant stated; the sorted-insert consequence is vague and lacks the degenerate-chain argument.", misconceptions: [], sources: ["CS301 · Lec 5 §1"] },
+      { aiScore: 6, confidence: "high", feedback: "Invariant stated; the sorted-insert consequence is vague and lacks the degenerate-chain argument.", misconceptions: ["mc-bst-invariant"], sources: ["CS301 · Lec 5 §1"] },
       { decision: { action: "edit", finalScore: 4, finalFeedback: "Lowered to 4: the example never shows why height becomes n−1, so half the rubric is unmet.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-09-08T18:20:00") } }),
   ]),
   // ── CS301 · Hash Tables in Practice — 4 received · 3 pending (2 quick) ──

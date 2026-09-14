@@ -18,6 +18,8 @@ const cases = [
   ["CourseWorkspace assignments(dark/ar)", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: true, lang: "ar", courseId: "CS401", tab: "assignments" }],
   ["AssignmentCreate(dark)", "/src/screens/instructor/AssignmentCreateScreen.tsx", { screen: "assignment-create", dark: true, lang: "en", courseId: "CS301" }],
   ["CourseWorkspace analytics", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS401", tab: "analytics" }],
+  ["CourseWorkspace analytics(dark/CS301)", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: true, lang: "en", courseId: "CS301", tab: "analytics" }],
+  ["CourseWorkspace audit(dark/ar)", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: true, lang: "ar", courseId: "CS301", tab: "audit" }],
   ["CourseWorkspace audit", "/src/screens/instructor/CourseWorkspaceScreen.tsx", { screen: "course-workspace", dark: false, lang: "en", courseId: "CS301", tab: "audit" }],
   ["AssignmentCreate", "/src/screens/instructor/AssignmentCreateScreen.tsx", { screen: "assignment-create", dark: false, lang: "en", courseId: "CS301" }],
   ["AssignmentReview", "/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-hash" }],

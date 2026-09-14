@@ -1,24 +1,14 @@
-import { useState } from "react";
 import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { Card, Chip, bFontFor, hFontFor, Th } from "../../components/ModuleUI";
-import { IconShield, IconEye, IconEyeOff } from "../../components/Icons";
-import { AuditEntry, fmtWhen } from "../../data/instructorModule";
+import { Card, Chip, Th, bFontFor, hFontFor } from "../../components/ModuleUI";
+import { fmtWhen } from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Audit trail (FR-AUDIT-01..04). Every decision that changed or ratified an AI
-// evaluation, plus every score-visibility change. Instructor/admin only.
+// Audit Trail — reference d7: one honest table, five columns, no filters.
+// Every row is a decision that changed or ratified an AI evaluation
+// (FR-AUDIT-01/02), including score-visibility flips. Instructors only.
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ACTION_META: Record<AuditEntry["action"], { en: string; ar: string; tone: "primary" | "peri" | "violet" | "slate" | "default" }> = {
-  approve: { en: "Approve", ar: "اعتماد", tone: "primary" },
-  edit: { en: "Edit", ar: "تعديل", tone: "peri" },
-  reject: { en: "Reject", ar: "رفض", tone: "violet" },
-  resubmit: { en: "Request resubmission", ar: "طلب إعادة تسليم", tone: "violet" },
-  visibility: { en: "Visibility change", ar: "تغيير الإظهار", tone: "default" },
-  reopen: { en: "Reopened", ar: "إعادة فتح", tone: "slate" },
-};
 
 export default function AuditTrailTab({ state, courseId }: { state: AppState; courseId: string }) {
   const { state: mod } = useInstructorModule();
@@ -28,119 +18,84 @@ export default function AuditTrailTab({ state, courseId }: { state: AppState; co
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
 
-  const [filter, setFilter] = useState<"all" | AuditEntry["action"]>("all");
-
-  const entries = mod.audit
+  const rows = mod.audit
     .filter((e) => e.courseId === courseId)
-    .filter((e) => filter === "all" || e.action === filter)
     .sort((a, b) => b.at.localeCompare(a.at));
 
+  const actionChip = (action: string) => {
+    const map: Record<string, { tone: "primary" | "violet" | "slate"; en: string; ar: string }> = {
+      approve: { tone: "primary", en: "Approve", ar: "اعتماد" },
+      edit: { tone: "primary", en: "Edit", ar: "تعديل" },
+      resubmit: { tone: "primary", en: "Request resubmission", ar: "طلب إعادة التسليم" },
+      visibility: { tone: "slate", en: "Score visibility", ar: "إظهار الدرجة" },
+      reject: { tone: "violet", en: "Reject", ar: "رفض" },
+      reopen: { tone: "slate", en: "Reopen", ar: "إعادة فتح" },
+    };
+    const m = map[action] ?? map.edit;
+    return <Chip tokens={tokens} tone={m.tone}>{lang === "ar" ? m.ar : m.en}</Chip>;
+  };
+
   return (
-    <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, gap: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <div style={{ textAlign: isRtl ? "right" : "left" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <IconShield size={16} color={tokens.primary} />
-            <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 19, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: 0 }}>
-              {lang === "ar" ? "سجل التدقيق" : "Audit trail"}
-            </h2>
-          </div>
-          <p style={{ fontSize: 12.5, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
-            {lang === "ar"
-              ? "كل قرار غيّر أو أقرّ تقييماً بالذكاء الاصطناعي، وكل تغيير في إعداد إظهار الدرجات. مرئي للمدرّس والمخوّلين فقط — لا للطلاب أبداً."
-              : "Every decision that changed or ratified an AI evaluation, and every score-visibility change. Visible to authorized instructors/admins only — never to students."}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-          {(["all", "approve", "edit", "reject", "resubmit", "visibility"] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: "5px 11px", borderRadius: 6, cursor: "pointer",
-                border: `1px solid ${filter === f ? tokens.primary : tokens.cardBorder}`,
-                background: filter === f ? tokens.primaryLight : tokens.card,
-                color: filter === f ? tokens.primary : tokens.textMuted,
-                fontFamily: bFont, fontSize: 11, fontWeight: filter === f ? 600 : 500,
-              }}
-            >
-              {f === "all" ? (lang === "ar" ? "الكل" : "All") : lang === "ar" ? ACTION_META[f].ar : ACTION_META[f].en}
-            </button>
-          ))}
-        </div>
+    <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
+      <div style={{ marginBottom: 18, textAlign: isRtl ? "right" : "left" }}>
+        <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 20, color: tokens.textPrimary, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+          {lang === "ar" ? "سجل التدقيق" : "Audit Trail"}
+        </h2>
+        <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
+          {lang === "ar"
+            ? "كل قرار غيّر أو أقرّ تقييم الذكاء الاصطناعي. للمدرّسين فقط."
+            : "Every decision that changed or ratified an AI evaluation. Instructors only."}
+        </p>
       </div>
 
-      <Card tokens={tokens} style={{ padding: 0, overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 820 }}>
-          <thead>
-            <tr>
-              <Th tokens={tokens}>{lang === "ar" ? "التاريخ/الوقت" : "Date / time"}</Th>
-              <Th tokens={tokens}>{lang === "ar" ? "نوع الإجراء" : "Action type"}</Th>
-              <Th tokens={tokens}>{lang === "ar" ? "الطالب · السؤال" : "Student · question"}</Th>
-              <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء الأصلية" : "Original AI score"}</Th>
-              <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "Final score"}</Th>
-              <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "Instructor"}</Th>
-              <Th tokens={tokens}>{lang === "ar" ? "ملاحظة" : "Note"}</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {entries.length === 0 && (
+      <Card tokens={tokens} style={{ padding: "6px 20px" }}>
+        {rows.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, padding: "22px 0" }}>
+            {lang === "ar" ? "لا قرارات مسجلة في هذا المقرر بعد." : "No recorded decisions in this course yet."}
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
               <tr>
-                <td colSpan={7} style={{ padding: 26, fontFamily: bFont, fontSize: 12, color: tokens.textFaint, textAlign: "center" }}>
-                  {lang === "ar" ? "لا مدخلات مطابقة لهذا المرشح." : "No entries match this filter."}
-                </td>
+                <Th tokens={tokens}>{lang === "ar" ? "التاريخ / الوقت" : "DATE / TIME"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "ACTION"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "AI SCORE"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "INSTRUCTOR"}</Th>
               </tr>
-            )}
-            {entries.map((e, i) => {
-              const meta = ACTION_META[e.action];
-              return (
-                <tr key={e.id} style={{ borderBottom: i < entries.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
-                  <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
-                    <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textSecondary }}>{fmtWhen(e.at, lang)}</span>
+            </thead>
+            <tbody>
+              {rows.map((e, i) => (
+                <tr key={e.id} style={{ borderBottom: i < rows.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
+                  <td style={{ padding: "15px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, whiteSpace: "nowrap" }}>
+                    {fmtWhen(e.at, lang)}
                   </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <Chip tokens={tokens} tone={meta.tone}>{lang === "ar" ? meta.ar : meta.en}</Chip>
-                  </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textPrimary }}>{e.studentName}</div>
-                    <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint, maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.questionLabel}</div>
-                  </td>
-                  <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                    <span style={{ fontFamily: MONO, fontSize: 12, color: e.aiScore === null ? tokens.noEvidence : tokens.developing }}>
-                      {e.aiScore === null ? (lang === "ar" ? "—" : "null") : e.aiScore}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 14px", textAlign: "right" }}>
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.mastered }}>
-                      {e.finalScore === null ? "—" : e.finalScore}
-                    </span>
-                  </td>
-                  <td style={{ padding: "10px 14px" }}>
-                    <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, whiteSpace: "nowrap" }}>{e.instructor}</span>
-                  </td>
-                  <td style={{ padding: "10px 14px", maxWidth: 320 }}>
+                  <td style={{ padding: "15px 10px" }}>
+                    <div style={{ marginBottom: 5 }}>{actionChip(e.action)}</div>
+                    <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>{e.assignmentTitle}</div>
                     {e.action === "visibility" ? (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: bFont, fontSize: 11, color: tokens.textSecondary }}>
-                        {e.visibilityBefore ? <IconEye size={12} color={tokens.primary} /> : <IconEyeOff size={12} color={tokens.textFaint} />}
-                        <span style={{ fontFamily: MONO, fontSize: 10 }}>{e.visibilityBefore ? "ON" : "OFF"} → {e.visibilityAfter ? "ON" : "OFF"}</span>
-                        {e.note && <span style={{ color: tokens.textFaint }}>· {e.note}</span>}
-                      </span>
-                    ) : (
-                      <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted, lineHeight: 1.5 }}>{e.note ?? "—"}</span>
-                    )}
+                      <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, marginTop: 4 }}>
+                        {lang === "ar"
+                          ? `إظهار الدرجة ${e.visibilityBefore ? "تشغيل" : "إيقاف"} → ${e.visibilityAfter ? "تشغيل" : "إيقاف"}`
+                          : `Score visibility ${e.visibilityBefore ? "ON" : "OFF"} → ${e.visibilityAfter ? "ON" : "OFF"}`}
+                      </div>
+                    ) : e.note ? (
+                      <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, marginTop: 4 }}>{e.note}</div>
+                    ) : null}
                   </td>
+                  <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.aiScore === null ? tokens.textFaint : tokens.textPrimary }}>
+                    {e.aiScore === null ? "—" : e.aiScore}
+                  </td>
+                  <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.primary }}>
+                    {e.finalScore === null ? "—" : e.finalScore}
+                  </td>
+                  <td style={{ padding: "15px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary }}>{e.instructor}</td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        )}
       </Card>
-
-      <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, marginTop: 14, lineHeight: 1.6, textAlign: isRtl ? "right" : "left" }}>
-        {lang === "ar"
-          ? "تُحفَظ درجة الذكاء الاصطناعي الأصلية دائماً بجانب الدرجة النهائية بغض النظر عن الإجراء، ما يتيح قياس تحسّن دقة التقييم مع الزمن."
-          : "The original AI score is always stored beside the final score regardless of action, so approve-vs-edit-vs-reject ratios remain usable as a measure of improving evaluation accuracy."}
-      </p>
-    </>
+    </div>
   );
 }

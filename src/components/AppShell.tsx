@@ -1,4 +1,5 @@
 import { Tokens, MONO, tk } from "../tokens";
+import { Toaster } from "./ModuleUI";
 import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
@@ -511,6 +512,7 @@ export function AuthShell({ state, setState, children }: AuthShellProps) {
         </div>
       </header>
       {children}
+      <Toaster tokens={tk(dark)} lang={lang} />
     </div>
   );
 }

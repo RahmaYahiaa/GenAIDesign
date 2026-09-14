@@ -3,703 +3,407 @@ import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
 import {
-  Card, Btn, Chip, StatusPill, ConfidencePill, ScoreValue, VisibilityControl, Modal,
-  AlertStrip, Field, inputStyle, textareaStyle, bFontFor, hFontFor, Th,
+  Card, Btn, Chip, ConfidencePill, ScoreValue, Modal, BackCircle, ConfirmBtn,
+  AlertStrip, inputStyle, textareaStyle, bFontFor, hFontFor, toast, Toggle,
 } from "../../components/ModuleUI";
-import { CitationChip } from "../../components/SharedUI";
-import {
-  IconArrowRight, IconArrowLeft, IconDoubleCheck, IconCheck, IconPencil, IconBan,
-  IconReply, IconWarning, IconSparkle, IconHistory, IconRefresh, IconImageAttach,
-  IconEye, IconGear,
-} from "../../components/Icons";
-import RemedialPanel, { RemedialEntry } from "../../components/RemedialPanel";
-import {
-  ReviewUnit, latestAttempt, misconceptionText, fmtWhen, COURSE_BY_ID,
-} from "../../data/instructorModule";
+import { IconWarning, IconCheck } from "../../components/Icons";
+import RemedialModal, { RemedialEntry } from "../../components/RemedialModal";
+import { latestAttempt, misconceptionText, fmtWhen, MISCONCEPTIONS } from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Assignment Review (FR-REV-*, FR-VIS-*, FR-ERR-*, part of FR-RESUB-*).
-// Order on screen: common-errors summary → quick-approval group → needs-review
-// group → finalized history. Individual submissions open a detail view with
-// exactly four actions plus an attempt switcher.
+// Assignment review — reference d4/d5/d12. Four stacked cards (common errors,
+// quick approval, needs review, reviewed) and a centered submission modal.
+// AI score is always a suggestion (dashed chip); the final score only exists
+// after an explicit instructor decision (solid chip).
 // ─────────────────────────────────────────────────────────────────────────────
+
+type ModalMode = "view" | "edit" | "reject" | "resubmit";
 
 export default function AssignmentReviewScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
-  const { state: mod, decide, requestResubmission, reopenUnit, bulkApprove, setScoreVisibility } = useInstructorModule();
+  const { state: mod, decide, requestResubmission, reopenUnit, bulkApprove, setAssignmentStatus, setScoreVisibility } = useInstructorModule();
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const Arrow = isRtl ? IconArrowLeft : IconArrowRight;
 
+  const courseId = state.courseId ?? "CS301";
   const assignment = mod.assignments.find((a) => a.id === state.assignmentId);
-  const [openUnit, setOpenUnit] = useState<string | null>(null);
-  const [confirmBulk, setConfirmBulk] = useState(false);
-  const [confirmHide, setConfirmHide] = useState(false);
-  const [resubmitFor, setResubmitFor] = useState<string | null>(null);
+  const units = useMemo(() => mod.units.filter((u) => u.assignmentId === state.assignmentId), [mod.units, state.assignmentId]);
+
+  const [openUnitId, setOpenUnitId] = useState<string | null>(null);
+  const [mode, setMode] = useState<ModalMode>("view");
+  const [editScore, setEditScore] = useState("");
+  const [editFeedback, setEditFeedback] = useState("");
   const [resubmitReason, setResubmitReason] = useState("");
   const [remedialEntry, setRemedialEntry] = useState<RemedialEntry | null>(null);
 
-  const units = useMemo(() => mod.units.filter((u) => u.assignmentId === state.assignmentId), [mod.units, state.assignmentId]);
+  const openUnit = units.find((u) => u.id === openUnitId) ?? null;
 
-  // FR-ERR-01/02 — aggregate misconceptions across this assignment's submissions.
-  const totalSubs = units.length || 1;
+  const pending = units.filter((u) => u.status === "awaiting_review");
+  const quick = pending.filter((u) => { const ev = latestAttempt(u).eval; return ev.confidence === "high" && ev.aiScore !== null; });
+  const needs = pending.filter((u) => !quick.includes(u));
+  const reviewed = units.filter((u) => u.status === "final");
+
+  // recurring misconceptions across this assignment's submissions
   const misAgg = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const u of units) {
-      const seen = new Set<string>();
-      for (const a of u.attempts) for (const m of a.eval.misconceptions) seen.add(m);
-      for (const m of seen) counts.set(m, (counts.get(m) ?? 0) + 1);
-    }
+    units.forEach((u) => latestAttempt(u).eval.misconceptions.forEach((id) => counts.set(id, (counts.get(id) ?? 0) + 1)));
+    const published = new Set(mod.remedial.filter((r) => r.status === "published" && r.misconceptionId).map((r) => r.misconceptionId));
     return [...counts.entries()]
-      .map(([id, count]) => ({ id, count, pct: Math.round((count / totalSubs) * 100) }))
-      .filter((x) => x.count >= 2)
+      .map(([id, count]) => ({ id, count, pct: Math.round((count / Math.max(1, units.length)) * 100), addressed: published.has(id) }))
       .sort((a, b) => b.count - a.count);
-  }, [units, totalSubs]);
+  }, [units, mod.remedial]);
 
   if (!assignment) {
     return (
-      <div style={{ padding: 40, fontFamily: bFont, color: tokens.textMuted }}>
-        {lang === "ar" ? "التكليف غير موجود." : "Assignment not found."}
+      <div style={{ padding: "26px 32px" }}>
+        <Card tokens={tokens}><div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, padding: 20 }}>
+          {lang === "ar" ? "التكليف غير موجود." : "Assignment not found."}
+        </div></Card>
       </div>
     );
   }
 
-  const course = COURSE_BY_ID(assignment.courseId);
-  const qLabel = (u: ReviewUnit) => {
-    const i = assignment.questions.findIndex((q) => q.id === u.questionId);
-    return `Q${i + 1}`;
-  };
-  const qTopic = (u: ReviewUnit) => {
-    const q = assignment.questions.find((x) => x.id === u.questionId);
-    const t = course.topics.find((x) => x.id === q?.topicId);
-    return t ? t.label[lang] : "";
-  };
-  const qMax = (u: ReviewUnit) => assignment.questions.find((q) => q.id === u.questionId)?.maxScore ?? 10;
-
-  const pending = units.filter((u) => u.status === "awaiting_review");
-  const quick = pending.filter((u) => {
-    const ev = latestAttempt(u).eval;
-    return ev.confidence === "high" && ev.aiScore !== null;
-  });
-  const needs = pending.filter((u) => !quick.includes(u));
-  const resubPending = units.filter((u) => u.status === "resubmission_requested");
-  const finalized = units.filter((u) => u.status === "final");
-
-  // FR-VIS-04 — how many students currently see a graded score under this assignment.
-  const visibleGradedCount = finalized.length;
-
-  const toggleVisibility = () => {
-    if (assignment.showScoreToStudent && visibleGradedCount > 0) setConfirmHide(true);
-    else setScoreVisibility(assignment.id, !assignment.showScoreToStudent);
+  const topicOf = (unitId: string) => {
+    const u = units.find((x) => x.id === unitId);
+    const q = assignment.questions.find((qq) => qq.id === u?.questionId);
+    const course = mod.courses.find((c) => c.id === courseId);
+    return course?.topics.find((t) => t.id === q?.topicId);
   };
 
-  const unitRow = (u: ReviewUnit) => {
-    const last = latestAttempt(u);
-    return (
-      <tr key={u.id} style={{ borderBottom: `1px solid ${tokens.cardBorder}` }}>
-        <td style={{ padding: "10px 14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <Chip tokens={tokens} tone="primary">{qLabel(u)}</Chip>
-            <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary }}>{u.studentName}</span>
-            {u.attempts.length > 1 && (
-              <Chip tokens={tokens} tone="peri"><IconHistory size={10} color={tokens.developing} />{u.attempts.length}</Chip>
-            )}
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint, marginTop: 3, paddingInlineStart: 4 }}>{qTopic(u)}</div>
-        </td>
-        <td style={{ padding: "10px 14px", maxWidth: 380 }}>
-          <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {last.eval.feedback.split(". ")[0]}.
-          </div>
-        </td>
-        <td style={{ padding: "10px 14px" }}><ScoreValue kind="ai" score={last.eval.aiScore} max={qMax(u)} tokens={tokens} lang={lang} /></td>
-        <td style={{ padding: "10px 14px" }}><ConfidencePill confidence={last.eval.confidence} tokens={tokens} lang={lang} /></td>
-        <td style={{ padding: "10px 14px", textAlign: "right" }}>
-          <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setOpenUnit(u.id)} style={{ padding: "5px 10px", fontSize: 11 }}>
-            {lang === "ar" ? "فتح" : "Open"}
-            <Arrow size={12} color={tokens.primary} />
-          </Btn>
-        </td>
-      </tr>
-    );
+  const openModal = (unitId: string, m: ModalMode = "view") => {
+    const u = units.find((x) => x.id === unitId);
+    const ev = latestAttempt(u!).eval;
+    setOpenUnitId(unitId); setMode(m);
+    setEditScore(String(ev.aiScore ?? 0));
+    setEditFeedback(ev.feedback);
+    setResubmitReason("");
   };
 
-  const detail = openUnit ? units.find((u) => u.id === openUnit) : null;
+  const afterDecision = (msg: string) => { setOpenUnitId(null); setMode("view"); toast(msg); };
+
+  const mono = (t: string) => (
+    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, margin: "0 0 7px" }}>{t}</div>
+  );
+  const sectionHead = (title: string, sub: string, count?: number) => (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>{title}</div>
+        {count !== undefined && (
+          <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: tokens.primary, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "2px 8px" }}>{count}</span>
+        )}
+      </div>
+      <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, marginTop: 3 }}>{sub}</div>
+    </div>
+  );
+
+  const lastOf = (u: (typeof units)[number]) => latestAttempt(u);
 
   return (
     <div style={{ padding: "26px 32px", direction: isRtl ? "rtl" : "ltr" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
-          <button
-            onClick={() => setState({ ...state, screen: "course-workspace", tab: "assignments" })}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, padding: 0, marginBottom: 8 }}
-          >
-            <Arrow size={12} color={tokens.textMuted} />
-            {lang === "ar" ? "كل التكليفات" : "ALL ASSIGNMENTS"}
-          </button>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 20, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: 0 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 20, flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <BackCircle tokens={tokens} rtl={isRtl} onClick={() => setState({ ...state, screen: "course-workspace", tab: "assignments" })} />
+          <div style={{ textAlign: isRtl ? "right" : "left" }}>
+            <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
               {lang === "ar" ? assignment.title.ar : assignment.title.en}
             </h1>
-            <StatusPill status={assignment.status} tokens={tokens} lang={lang} />
+            <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
+              {assignment.questions.length} {lang === "ar" ? "أسئلة" : "questions"} · {units.length} {lang === "ar" ? "تسليماً" : "submissions"}
+            </p>
           </div>
-          <p style={{ fontSize: 12, color: tokens.textMuted, margin: "4px 0 0", fontFamily: bFont }}>
-            {assignment.questions.length} {lang === "ar" ? "أسئلة" : "questions"} · {units.length} {lang === "ar" ? "إجابة مُقيّمة" : "evaluated answers"} · {course.id}
-          </p>
         </div>
-
-        {/* Live score-visibility control (FR-VIS-02, reachable mid-grading) */}
-        <Card tokens={tokens} style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
-          <IconGear size={14} color={tokens.textMuted} />
-          <VisibilityControl on={assignment.showScoreToStudent} onChange={toggleVisibility} tokens={tokens} lang={lang} />
-          <span style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textFaint, maxWidth: 190, lineHeight: 1.45 }}>
-            {lang === "ar" ? "إعداد حي — يمكن تغييره في أي وقت، قبل النشر أو بعده أو أثناء المراجعة." : "Live setting — change it any time: before publish, after publish, or mid-review."}
-          </span>
-        </Card>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <button
+            onClick={() => { const next = assignment.status === "open" ? "closed" : "open"; setAssignmentStatus(assignment.id, next); toast(next === "open" ? (lang === "ar" ? "أُعيد فتح التكليف." : "Assignment reopened.") : (lang === "ar" ? "أُغلق التكليف — التسليم معطّل." : "Assignment closed — submission disabled.")); }}
+            title={lang === "ar" ? "تبديل حالة التكليف" : "Toggle assignment status"}
+            style={{ padding: "5px 12px", borderRadius: 7, cursor: "pointer", fontFamily: bFont, fontSize: 11.5, fontWeight: 600, background: assignment.status === "open" ? tokens.primaryLight : tokens.inset, border: `1px solid ${assignment.status === "open" ? tokens.primary : tokens.cardBorder}`, color: assignment.status === "open" ? tokens.primary : tokens.textMuted }}
+          >
+            {assignment.status === "open" ? (lang === "ar" ? "مفتوح" : "Open") : (lang === "ar" ? "مغلق" : "Closed")}
+          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 12px", borderRadius: 10, background: tokens.card, border: `1px solid ${tokens.cardBorder}`, flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <Toggle on={assignment.showScoreToStudent} onChange={() => { setScoreVisibility(assignment.id, !assignment.showScoreToStudent); toast(!assignment.showScoreToStudent ? (lang === "ar" ? "إظهار الدرجة للطالب: تشغيل." : "Score visibility ON.") : (lang === "ar" ? "إظهار الدرجة للطالب: إيقاف." : "Score visibility OFF.")); }} tokens={tokens} />
+            <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textSecondary }}>{lang === "ar" ? "إظهار الدرجة" : "Show score"}</span>
+          </div>
+        </div>
       </div>
 
-      {detail ? (
-        <UnitDetail
-          key={detail.id}
-          state={state}
-          setState={setState}
-          unit={detail}
-          qLabel={qLabel(detail)}
-          qTopic={qTopic(detail)}
-          qMax={qMax(detail)}
-          onBack={() => setOpenUnit(null)}
-          onResubmit={() => { setResubmitFor(detail.id); setResubmitReason(""); }}
-        />
-      ) : (
-        <>
-          {/* ── Common Errors Summary — shown BEFORE any individual submission ── */}
-          <Card tokens={tokens} style={{ marginBottom: 18, borderInlineStartWidth: 3, borderInlineStartColor: tokens.gap }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-                {lang === "ar" ? "ملخص الأخطاء الشائعة" : "Common errors summary"}
-              </div>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "عبر كل إجابات التكليف" : "across all submissions"}</span>
-            </div>
-            {misAgg.length === 0 ? (
-              <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: "8px 0 0", lineHeight: 1.6 }}>
-                {lang === "ar"
-                  ? "لم يُعثر على نمط خطأ متكرر في هذه الدفعة — لا تصنيف مُفتعل هنا."
-                  : "No recurring error pattern was found in this cohort — nothing is forced into a category."}
-              </p>
-            ) : (
-              misAgg.map((m) => (
-                <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: `1px solid ${tokens.cardBorder}`, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
-                    <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary, lineHeight: 1.5 }}>{misconceptionText(m.id, lang)}</div>
-                    <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint, marginTop: 3 }}>
-                      {m.count} / {totalSubs} {lang === "ar" ? "إجابة" : "submissions"} · {m.pct}%
-                    </div>
-                  </div>
-                  <div style={{ width: 90, flexShrink: 0 }}>
-                    <div style={{ height: 5, background: tokens.inset, borderRadius: 3, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${m.pct}%`, background: tokens.gap, borderRadius: 3 }} />
-                    </div>
-                  </div>
-                  <Btn tokens={tokens} lang={lang} variant="violet" onClick={() => setRemedialEntry({ courseId: assignment.courseId, topicId: assignment.questions[0]?.topicId ?? "", misconceptionId: m.id })} style={{ flexShrink: 0 }}>
-                    <IconSparkle size={12} color={tokens.gap} />
-                    {lang === "ar" ? "توليد محتوى علاجي" : "Generate remedial content"}
-                  </Btn>
+      {/* Common errors */}
+      <Card tokens={tokens} style={{ marginBottom: 18, padding: "18px 20px" }}>
+        {sectionHead(
+          lang === "ar" ? "ملخص الأخطاء الشائعة" : "Common Errors Summary",
+          lang === "ar" ? "مفاهيم خاطئة متكررة رُصدت عبر التسليمات." : "Detected recurring misconceptions across submissions.",
+        )}
+        {misAgg.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا أنماط خطأ متكررة في تسليمات هذا التكليف." : "No recurring error patterns in this assignment's submissions."}</div>
+        ) : (
+          misAgg.map((m, i) => (
+            <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "12px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <div style={{ textAlign: isRtl ? "right" : "left" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", fontFamily: bFont, fontSize: 13, fontWeight: 500, color: tokens.textPrimary, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <IconWarning size={14} color={tokens.gap} />
+                  {misconceptionText(m.id, lang)}
                 </div>
-              ))
-            )}
-          </Card>
-
-          {/* ── Group 1: ready for quick approval ── */}
-          <Card tokens={tokens} style={{ marginBottom: 18, borderInlineStartWidth: 3, borderInlineStartColor: tokens.mastered }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>{lang === "ar" ? "جاهز للاعتماد السريع" : "Ready for quick approval"}</div>
-                <Chip tokens={tokens} tone="primary">{quick.length}</Chip>
-                <ConfidencePill confidence="high" tokens={tokens} lang={lang} />
+                <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 4, marginInlineStart: 22 }}>
+                  {m.count} {lang === "ar" ? "تسليمات" : "submissions"} · {m.pct}%{m.addressed ? ` · ${lang === "ar" ? "عولج" : "addressed"}` : ""}
+                </div>
               </div>
-              <Btn tokens={tokens} lang={lang} onClick={() => setConfirmBulk(true)} disabled={quick.length === 0}>
-                <IconDoubleCheck size={14} color="#fff" />
-                {lang === "ar" ? `اعتماد جماعي (${quick.length})` : `Bulk approve (${quick.length})`}
+              <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "8px 14px", fontSize: 12 }}
+                onClick={() => setRemedialEntry({ courseId, topicId: MISCONCEPTIONS.find((x) => x.id === m.id)?.topicId ?? "", misconceptionId: m.id })}>
+                {lang === "ar" ? "توليد محتوى علاجي" : "Generate remedial content"}
               </Btn>
             </div>
-            <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, margin: "0 0 10px", lineHeight: 1.55 }}>
-              {lang === "ar"
-                ? "كل إجابة قيّمها الذكاء الاصطناعي بثقة عالية. الاعتماد الجماعي ليس نهائياً — تبقى كل إجابة قابلة للفتح والتعديل بعده."
-                : "Every answer the AI evaluated with high confidence. Bulk approval is not irreversible — each item stays reopenable and editable afterwards."}
-            </p>
-            {quick.length === 0 ? (
-              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, padding: "6px 0" }}>
-                {lang === "ar" ? "لا عناصر حالياً في هذه المجموعة." : "Nothing in this group right now."}
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <Th tokens={tokens}>{lang === "ar" ? "السؤال · الطالب" : "Question · Student"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "سطر التغذية الراجعة" : "One-line feedback"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الدرجة المقترحة" : "Suggested score"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الثقة" : "Confidence"}</Th>
-                    <Th tokens={tokens} align="right"></Th>
-                  </tr>
-                </thead>
-                <tbody>{quick.map(unitRow)}</tbody>
-              </table>
-            )}
-          </Card>
-
-          {/* ── Group 2: needs your review ── */}
-          <Card tokens={tokens} style={{ marginBottom: 18, borderInlineStartWidth: 3, borderInlineStartColor: tokens.developing }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>{lang === "ar" ? "يحتاج مراجعتك" : "Needs your review"}</div>
-              <Chip tokens={tokens} tone="peri">{needs.length}</Chip>
-            </div>
-            <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, margin: "0 0 10px", lineHeight: 1.55 }}>
-              {lang === "ar"
-                ? "ثقة متوسطة أو منخفضة أو أدلة غير كافية — تُفتح وتُراجع فردياً دائماً."
-                : "Medium, low, or insufficient-evidence evaluations — always opened and reviewed individually."}
-            </p>
-            {needs.length === 0 ? (
-              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, padding: "6px 0" }}>
-                {lang === "ar" ? "لا عناصر بانتظار المراجعة الفردية." : "No items awaiting individual review."}
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <Th tokens={tokens}>{lang === "ar" ? "السؤال · الطالب" : "Question · Student"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "سطر التغذية الراجعة" : "One-line feedback"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الدرجة المقترحة" : "Suggested score"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الثقة" : "Confidence"}</Th>
-                    <Th tokens={tokens} align="right"></Th>
-                  </tr>
-                </thead>
-                <tbody>{needs.map(unitRow)}</tbody>
-              </table>
-            )}
-            {resubPending.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <AlertStrip
-                  tokens={tokens}
-                  lang={lang}
-                  tone="peri"
-                  icon={<IconReply size={13} color={tokens.developing} />}
-                  title={lang === "ar" ? `${resubPending.length} إجابة أعيد تسليمها وتنتظر تقييمها` : `${resubPending.length} resubmitted answer(s) awaiting evaluation`}
-                  body={resubPending.map((u) => `${u.studentName} · ${qLabel(u)}`).join("  ·  ")}
-                />
-              </div>
-            )}
-          </Card>
-
-          {/* ── Finalized history (kept viewable on closed assignments) ── */}
-          <Card tokens={tokens}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>{lang === "ar" ? "السجل النهائي" : "Finalized history"}</div>
-              <Chip tokens={tokens}>{finalized.length}</Chip>
-              <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
-                {lang === "ar" ? "يبقى متاحاً حتى بعد إغلاق التكليف." : "Remains viewable after the assignment is closed."}
-              </span>
-            </div>
-            {finalized.length === 0 ? (
-              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-                {lang === "ar" ? "لا قرارات نهائية بعد." : "No finalized decisions yet."}
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <Th tokens={tokens}>{lang === "ar" ? "السؤال · الطالب" : "Question · Student"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "مقترحة ← نهائية" : "Suggested → final"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "Action"}</Th>
-                    <Th tokens={tokens} align="right"></Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {finalized.map((u) => {
-                    const last = latestAttempt(u);
-                    const d = last.decision;
-                    return (
-                      <tr key={u.id} style={{ borderBottom: `1px solid ${tokens.cardBorder}` }}>
-                        <td style={{ padding: "9px 14px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                            <Chip tokens={tokens} tone="primary">{qLabel(u)}</Chip>
-                            <span style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary }}>{u.studentName}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: "9px 14px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                            <ScoreValue kind="ai" score={last.eval.aiScore} max={qMax(u)} tokens={tokens} lang={lang} />
-                            <span style={{ color: tokens.textFaint, fontSize: 11 }}>→</span>
-                            <ScoreValue kind="final" score={d?.finalScore ?? null} max={qMax(u)} tokens={tokens} lang={lang} />
-                          </div>
-                        </td>
-                        <td style={{ padding: "9px 14px" }}>
-                          <Chip tokens={tokens} tone={d?.action === "approve" ? "primary" : d?.action === "edit" ? "peri" : "violet"}>
-                            {d?.action === "approve" ? (lang === "ar" ? "اعتماد" : "APPROVE") : d?.action === "edit" ? (lang === "ar" ? "تعديل" : "EDIT") : (lang === "ar" ? "رفض" : "REJECT")}
-                          </Chip>
-                        </td>
-                        <td style={{ padding: "9px 14px", textAlign: "right" }}>
-                          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setOpenUnit(u.id)} style={{ padding: "5px 10px", fontSize: 11 }}>
-                            {lang === "ar" ? "فتح" : "Open"}
-                          </Btn>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </Card>
-        </>
-      )}
-
-      {/* ── Bulk approve confirmation (exactly one confirmation, FR-REV-06) ── */}
-      <Modal
-        open={confirmBulk}
-        onClose={() => setConfirmBulk(false)}
-        tokens={tokens}
-        lang={lang}
-        title={lang === "ar" ? `اعتماد ${quick.length} إجابة دفعة واحدة` : `Approve ${quick.length} submissions at once`}
-        subtitle={lang === "ar"
-          ? "سيُعوتمد درجة الذكاء الاصطناعي كما هي لكل عنصر عالي الثقة. يمكنك فتح أي عنصر وتعديله لاحقاً."
-          : "Each high-confidence item will be finalized with the AI-suggested score as-is. Any item can still be reopened and edited afterwards."}
-      >
-        <div style={{ maxHeight: 180, overflowY: "auto", marginBottom: 14, border: `1px solid ${tokens.cardBorder}`, borderRadius: 9, padding: "6px 10px" }}>
-          {quick.map((u) => (
-            <div key={u.id} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${tokens.insetBorder}`, fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary }}>
-              <span>{qLabel(u)} · {u.studentName}</span>
-              <span style={{ fontFamily: MONO, color: tokens.developing }}>{latestAttempt(u).eval.aiScore}/{qMax(u)}</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setConfirmBulk(false)}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
-          <Btn tokens={tokens} lang={lang} onClick={() => { bulkApprove(quick.map((u) => u.id)); setConfirmBulk(false); }}>
-            <IconDoubleCheck size={13} color="#fff" />
-            {lang === "ar" ? "تأكيد الاعتماد الجماعي" : "Confirm bulk approve"}
-          </Btn>
-        </div>
-      </Modal>
-
-      {/* ── Visibility-off confirmation naming affected students (FR-VIS-04) ── */}
-      <Modal
-        open={confirmHide}
-        onClose={() => setConfirmHide(false)}
-        tokens={tokens}
-        lang={lang}
-        title={lang === "ar" ? "إخفاء الدرجات المرئية حالياً" : "Hide currently visible scores"}
-        subtitle={lang === "ar"
-          ? `${visibleGradedCount} طالباً يرون درجة نهائية معتمدة الآن تحت هذا التكليف. سيخسرون رؤيتها فور التطبيق.`
-          : `${visibleGradedCount} student(s) currently see a finalized graded score under this assignment. They will lose visibility of it the moment this applies.`}
-      >
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setConfirmHide(false)}>{lang === "ar" ? "تراجع" : "Keep visible"}</Btn>
-          <Btn tokens={tokens} lang={lang} variant="violet" onClick={() => { setScoreVisibility(assignment.id, false); setConfirmHide(false); }}>
-            <IconEye size={13} color={tokens.gap} />
-            {lang === "ar" ? `إخفاء عن ${visibleGradedCount} طالباً` : `Hide from ${visibleGradedCount} student(s)`}
-          </Btn>
-        </div>
-      </Modal>
-
-      {/* ── Request resubmission (mandatory reason, FR-RESUB-01) ── */}
-      <Modal
-        open={resubmitFor !== null}
-        onClose={() => setResubmitFor(null)}
-        tokens={tokens}
-        lang={lang}
-        title={lang === "ar" ? "طلب إعادة تسليم" : "Request resubmission"}
-        subtitle={lang === "ar"
-          ? "السبب إلزامي ويُعرض للطالب بجانب إجابته السابقة. لا تُسجَّل درجة نهائية."
-          : "The reason is mandatory and is shown to the student next to their previous answer. No final grade is recorded."}
-      >
-        <Field label={lang === "ar" ? "السبب (إلزامي)" : "Reason (required)"} tokens={tokens} lang={lang} required>
-          <textarea value={resubmitReason} onChange={(e) => setResubmitReason(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "ما الذي يجب أن يصلحه الطالب بالضبط؟" : "What exactly must the student fix?"} />
-        </Field>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setResubmitFor(null)}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
-          <Btn
-            tokens={tokens}
-            lang={lang}
-            disabled={!resubmitReason.trim()}
-            onClick={() => { if (resubmitFor) requestResubmission(resubmitFor, resubmitReason.trim()); setResubmitFor(null); setOpenUnit(null); }}
-          >
-            <IconReply size={13} color="#fff" />
-            {lang === "ar" ? "إرسال الطلب للطالب" : "Send request to student"}
-          </Btn>
-        </div>
-      </Modal>
-
-      <RemedialPanel open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} tokens={tokens} lang={lang} entry={remedialEntry} />
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Individual submission detail — four actions, attempt history, provisional
-// vs final score always visually distinct.
-// ─────────────────────────────────────────────────────────────────────────────
-function UnitDetail({
-  state, setState, unit, qLabel, qTopic, qMax, onBack, onResubmit,
-}: {
-  state: AppState;
-  setState: (s: AppState) => void;
-  unit: ReviewUnit;
-  qLabel: string;
-  qTopic: string;
-  qMax: number;
-  onBack: () => void;
-  onResubmit: () => void;
-}) {
-  const { decide, reopenUnit } = useInstructorModule();
-  const tokens = tk(state.dark);
-  const lang = state.lang;
-  const isRtl = lang === "ar";
-  const hFont = hFontFor(lang);
-  const bFont = bFontFor(lang);
-  const Arrow = isRtl ? IconArrowLeft : IconArrowRight;
-
-  const [viewAttempt, setViewAttempt] = useState(unit.attempts.length);   // latest
-  const [mode, setMode] = useState<null | "edit" | "reject">(null);
-  const [scoreInput, setScoreInput] = useState<string>("");
-  const [feedbackInput, setFeedbackInput] = useState("");
-
-  const attempt = unit.attempts[viewAttempt - 1];
-  const isLatest = viewAttempt === unit.attempts.length;
-  const canAct = isLatest && unit.status !== "final" && unit.attempts[viewAttempt - 1].resubmitReason === undefined;
-  const decision = attempt.decision;
-
-  const startEdit = (m: "edit" | "reject") => {
-    setMode(m);
-    setScoreInput(m === "edit" ? String(attempt.eval.aiScore ?? "") : "");
-    setFeedbackInput(m === "edit" ? attempt.eval.feedback : "");
-  };
-
-  const scoreNum = Number(scoreInput);
-  const scoreValid = scoreInput.trim() !== "" && !Number.isNaN(scoreNum) && scoreNum >= 0 && scoreNum <= qMax;
-  const feedbackValid = feedbackInput.trim().length > 0;
-
-  return (
-    <div>
-      <button onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, padding: 0, marginBottom: 12 }}>
-        <Arrow size={12} color={tokens.textMuted} />
-        {lang === "ar" ? "رجوع إلى المجموعتين" : "BACK TO GROUPS"}
-      </button>
-
-      <Card tokens={tokens} style={{ marginBottom: 16 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-          <div style={{ textAlign: isRtl ? "right" : "left" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <Chip tokens={tokens} tone="primary">{qLabel}</Chip>
-              <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>{qTopic}</span>
-              <ConfidencePill confidence={attempt.eval.confidence} tokens={tokens} lang={lang} />
-              {unit.status === "final" && <Chip tokens={tokens} tone="primary"><IconCheck size={10} color={tokens.primary} />{lang === "ar" ? "نهائي" : "FINAL"}</Chip>}
-              {unit.status === "resubmission_requested" && <Chip tokens={tokens} tone="peri"><IconReply size={10} color={tokens.developing} />{lang === "ar" ? "بانتظار إعادة التسليم" : "RESUBMISSION REQUESTED"}</Chip>}
-            </div>
-            <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 16, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>{unit.studentName}</div>
-            <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint, marginTop: 3 }}>
-              {lang === "ar" ? "سُلّمت" : "submitted"} {fmtWhen(attempt.submittedAt, lang)}
-            </div>
-          </div>
-
-          {/* Attempt switcher (FR-RESUB-02) */}
-          {unit.attempts.length > 1 && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <IconHistory size={14} color={tokens.textMuted} />
-              <div style={{ display: "flex", gap: 4, padding: 3, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8 }}>
-                {unit.attempts.map((a) => (
-                  <button
-                    key={a.n}
-                    onClick={() => { setViewAttempt(a.n); setMode(null); }}
-                    style={{
-                      padding: "5px 11px", borderRadius: 6, border: "none", cursor: "pointer",
-                      fontFamily: MONO, fontSize: 10.5, fontWeight: 700,
-                      background: viewAttempt === a.n ? tokens.card : "transparent",
-                      color: viewAttempt === a.n ? tokens.primary : tokens.textMuted,
-                      boxShadow: viewAttempt === a.n ? "0 1px 4px rgba(13,26,46,0.12)" : "none",
-                    }}
-                  >
-                    {lang === "ar" ? `محاولة ${a.n}` : `Attempt ${a.n}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {!isLatest && (
-          <div style={{ marginTop: 12 }}>
-            <AlertStrip
-              tokens={tokens}
-              lang={lang}
-              tone="slate"
-              icon={<IconHistory size={13} color={tokens.noEvidence} />}
-              title={lang === "ar" ? "تشاهد محاولة سابقة — للقراءة فقط." : "Viewing an earlier attempt — read-only."}
-              body={lang === "ar" ? "الإجراءات النهائية متاحة على أحدث محاولة فقط." : "Final actions are available on the latest attempt only."}
-            />
-          </div>
-        )}
-
-        {attempt.resubmitReason && (
-          <div style={{ marginTop: 12 }}>
-            <AlertStrip
-              tokens={tokens}
-              lang={lang}
-              tone="violet"
-              icon={<IconReply size={13} color={tokens.gap} />}
-              title={lang === "ar" ? "طُلبت إعادة التسليم على هذه المحاولة" : "Resubmission was requested on this attempt"}
-              body={attempt.resubmitReason}
-            />
-          </div>
+          ))
         )}
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, alignItems: "start" }}>
-        {/* Student's answer */}
-        <Card tokens={tokens}>
-          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary, marginBottom: 10 }}>
-            {lang === "ar" ? "إجابة الطالب" : "Student answer"}
-          </div>
-          <div style={{ padding: "12px 14px", background: tokens.inset, border: `1px solid ${tokens.insetBorder}`, borderRadius: 9, fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.7, whiteSpace: "pre-wrap", minHeight: 60 }}>
-            {attempt.text || (lang === "ar" ? "(لا نص — مرفق صورة فقط)" : "(no text — image attached only)")}
-          </div>
-          {attempt.image && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
-                <IconImageAttach size={12} color={tokens.textFaint} />
-                {lang === "ar" ? "مرفق: عمل يدوي مصوّر" : "ATTACHED — handwritten work"}
-              </div>
-              <img src={attempt.image} alt="student handwritten work" style={{ width: "100%", borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, display: "block" }} />
+      {/* Quick approval */}
+      <Card tokens={tokens} style={{ marginBottom: 18, padding: "18px 20px" }}>
+        {sectionHead(
+          lang === "ar" ? "جاهز للاعتماد السريع" : "Ready for quick approval",
+          lang === "ar" ? "كل التسليمات التي قيّمها الذكاء الاصطناعي بثقة عالية." : "Every submission the AI evaluated with high confidence.",
+          quick.length,
+        )}
+        {quick.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا شيء في نطاق الثقة العالية الآن." : "Nothing waiting in the high-confidence band right now."}</div>
+        ) : (
+          <>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {quick.map((u) => {
+                const ev = lastOf(u).eval;
+                const q = assignment.questions.find((qq) => qq.id === u.questionId);
+                return (
+                  <div key={u.id} style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
+                      <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>
+                        {u.studentName} · {lang === "ar" ? topicOf(u.id)?.label.ar : topicOf(u.id)?.label.en}
+                      </div>
+                      <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, marginTop: 3, lineHeight: 1.5 }}>{ev.feedback}</div>
+                    </div>
+                    <ScoreValue kind="ai" score={ev.aiScore} max={q?.maxScore ?? 10} tokens={tokens} lang={lang} />
+                  </div>
+                );
+              })}
             </div>
-          )}
+            <ConfirmBtn
+              tokens={tokens} lang={lang} variant="solid"
+              label={<><IconCheck size={13} color="#fff" /> {lang === "ar" ? `اعتماد الكل (${quick.length})` : `Bulk approve all ${quick.length}`}</>}
+              confirmLabel={lang === "ar" ? `اضغط للتأكيد — اعتماد ${quick.length}` : `Click again to confirm — approve ${quick.length}`}
+              onConfirm={() => { bulkApprove(quick.map((u) => u.id)); toast(lang === "ar" ? `اعتُمدت ${quick.length} تسليمات بدرجات الذكاء الاصطناعي.` : `Approved ${quick.length} submissions at their AI scores.`); }}
+              style={{ width: "100%", padding: "11px 0", fontSize: 13, marginTop: 14 }}
+            />
+          </>
+        )}
+      </Card>
+
+      {/* Needs review */}
+      <Card tokens={tokens} style={{ marginBottom: 18, padding: "18px 20px" }}>
+        {sectionHead(
+          lang === "ar" ? "يحتاج مراجعتك" : "Needs your review",
+          lang === "ar" ? "ثقة متوسطة، ثقة منخفضة، أو أدلة غير كافية." : "Medium confidence, low confidence, or insufficient evidence.",
+          needs.length,
+        )}
+        {needs.length === 0 ? (
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا شيء بانتظار المراجعة اليدوية." : "Nothing waiting for manual review."}</div>
+        ) : (
+          needs.map((u, i) => {
+            const ev = lastOf(u).eval;
+            const q = assignment.questions.find((qq) => qq.id === u.questionId);
+            return (
+              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "12px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <div style={{ textAlign: isRtl ? "right" : "left" }}>
+                  <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>
+                    {u.studentName} · {lang === "ar" ? topicOf(u.id)?.label.ar : topicOf(u.id)?.label.en}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <ConfidencePill confidence={ev.confidence} tokens={tokens} lang={lang} />
+                    <ScoreValue kind="ai" score={ev.aiScore} max={q?.maxScore ?? 10} tokens={tokens} lang={lang} />
+                  </div>
+                </div>
+                <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "8px 16px", fontSize: 12 }} onClick={() => openModal(u.id)}>
+                  {lang === "ar" ? "مراجعة" : "Review"}
+                </Btn>
+              </div>
+            );
+          })
+        )}
+      </Card>
+
+      {/* Reviewed */}
+      {reviewed.length > 0 && (
+        <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+          {sectionHead(lang === "ar" ? "تمت مراجعتها" : "Reviewed", lang === "ar" ? "قرارات نهائية مسجلة في سجل التدقيق." : "Final decisions, recorded in the audit trail.", reviewed.length)}
+          {reviewed.map((u, i) => {
+            const at = lastOf(u);
+            const q = assignment.questions.find((qq) => qq.id === u.questionId);
+            const action = at.decision?.action ?? "approve";
+            return (
+              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, padding: "12px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <div style={{ textAlign: isRtl ? "right" : "left" }}>
+                  <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>
+                    {u.studentName} · {lang === "ar" ? topicOf(u.id)?.label.ar : topicOf(u.id)?.label.en}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <Chip tokens={tokens} tone={action === "approve" ? "primary" : action === "reject" ? "violet" : "peri"}>
+                      {action === "approve" ? (lang === "ar" ? "معتمد" : "Approved") : action === "edit" ? (lang === "ar" ? "معدّل" : "Edited") : (lang === "ar" ? "مرفوض" : "Rejected")}
+                    </Chip>
+                    <ScoreValue kind="final" score={at.decision?.finalScore ?? null} max={q?.maxScore ?? 10} tokens={tokens} lang={lang} />
+                  </div>
+                </div>
+                <Btn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "8px 16px", fontSize: 12 }} onClick={() => openModal(u.id)}>
+                  {lang === "ar" ? "فتح" : "Open"}
+                </Btn>
+              </div>
+            );
+          })}
         </Card>
+      )}
 
-        {/* AI evaluation + actions */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <Card tokens={tokens} style={{ borderInlineStartWidth: 3, borderInlineStartColor: tokens.developing }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>{lang === "ar" ? "تقييم الذكاء الاصطناعي" : "AI evaluation"}</div>
-              <ScoreValue kind="ai" score={attempt.eval.aiScore} max={qMax} tokens={tokens} lang={lang} />
-            </div>
-            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65, margin: "0 0 10px" }}>{attempt.eval.feedback}</p>
-            {attempt.eval.sources.length > 0 && (
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {attempt.eval.sources.map((s, i) => <CitationChip key={i} label={s} tokens={tokens} />)}
+      {/* ── Submission modal (d5) ── */}
+      <Modal
+        open={openUnit !== null}
+        onClose={() => { setOpenUnitId(null); setMode("view"); }}
+        tokens={tokens} lang={lang} width={660}
+        title={openUnit?.studentName ?? ""}
+        subtitle={openUnit ? (lang === "ar" ? topicOf(openUnit.id)?.label.ar : topicOf(openUnit.id)?.label.en) : undefined}
+      >
+        {openUnit && (() => {
+          const at = lastOf(openUnit);
+          const ev = at.eval;
+          const q = assignment.questions.find((qq) => qq.id === openUnit.questionId);
+          const max = q?.maxScore ?? 10;
+          const isFinal = openUnit.status === "final";
+          return (
+            <>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                {openUnit.status === "awaiting_review" && <Chip tokens={tokens} tone="primary">{lang === "ar" ? "بانتظار المراجعة" : "Pending review"}</Chip>}
+                {openUnit.status === "resubmission_requested" && <Chip tokens={tokens} tone="violet">{lang === "ar" ? "طُلب إعادة التسليم" : "Resubmission requested"}</Chip>}
+                {isFinal && <Chip tokens={tokens} tone={at.decision?.action === "approve" ? "primary" : at.decision?.action === "reject" ? "violet" : "peri"}>{at.decision?.action === "approve" ? (lang === "ar" ? "معتمد" : "Approved") : at.decision?.action === "edit" ? (lang === "ar" ? "معدّل" : "Edited") : (lang === "ar" ? "مرفوض" : "Rejected")}</Chip>}
+                <ConfidencePill confidence={ev.confidence} tokens={tokens} lang={lang} />
+                <ScoreValue kind="ai" score={ev.aiScore} max={max} tokens={tokens} lang={lang} />
               </div>
-            )}
-            {attempt.eval.sources.length === 0 && (
-              <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.noEvidence }}>
-                {lang === "ar" ? "لا مصادر — تقييم غير موثّق" : "NO SOURCES — UNGROUNDED EVALUATION"}
-              </div>
-            )}
-            {attempt.eval.misconceptions.length > 0 && (
-              <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>
-                {attempt.eval.misconceptions.map((m) => (
-                  <AlertStrip key={m} tokens={tokens} lang={lang} tone="violet" icon={<IconWarning size={12} color={tokens.gap} />} title={misconceptionText(m, lang)} />
-                ))}
-              </div>
-            )}
-          </Card>
 
-          {decision && (
-            <Card tokens={tokens} style={{ borderInlineStartWidth: 3, borderInlineStartColor: tokens.mastered }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>{lang === "ar" ? "القرار النهائي" : "Final decision"}</div>
-                <ScoreValue kind="final" score={decision.finalScore} max={qMax} tokens={tokens} lang={lang} />
+              {openUnit.status === "resubmission_requested" && at.resubmitReason && (
+                <AlertStrip tokens={tokens} lang={lang} tone="violet"
+                  icon={<IconWarning size={15} color={tokens.gap} />}
+                  title={lang === "ar" ? "سبب طلب إعادة التسليم" : "Resubmission reason"}
+                  body={at.resubmitReason} />
+              )}
+
+              <div style={{ margin: "14px 0" }}>
+                {mono(lang === "ar" ? "إجابة الطالب" : "STUDENT ANSWER")}
+                <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                  {at.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
+                </div>
+                {at.image && <img src={at.image} alt="student upload" style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}` }} />}
               </div>
-              <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.6, margin: "0 0 8px" }}>{decision.finalFeedback}</p>
-              <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
-                {decision.action.toUpperCase()} · {decision.decidedBy} · {fmtWhen(decision.decidedAt, lang)}
+
+              <div style={{ marginBottom: 14 }}>
+                {mono(lang === "ar" ? "تغذية الذكاء الاصطناعي" : "AI FEEDBACK")}
+                <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65, margin: 0 }}>{ev.feedback}</p>
               </div>
-              {isLatest && (
-                <div style={{ marginTop: 10 }}>
-                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => reopenUnit(unit.id)} style={{ padding: "5px 10px", fontSize: 11 }}>
-                    <IconRefresh size={12} color={tokens.textMuted} />
-                    {lang === "ar" ? "إعادة فتح للمراجعة" : "Reopen for review"}
-                  </Btn>
+
+              {isFinal && at.decision && (
+                <div style={{ marginBottom: 14, padding: "10px 14px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
+                  {mono(lang === "ar" ? "قرار المدرّس" : "INSTRUCTOR DECISION")}
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <ScoreValue kind="final" score={at.decision.finalScore} max={max} tokens={tokens} lang={lang} />
+                    <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>
+                      {at.decision.decidedBy} · {fmtWhen(at.decision.decidedAt, lang)}
+                    </span>
+                  </div>
+                  {at.decision.finalFeedback && (
+                    <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, margin: "8px 0 0", lineHeight: 1.6 }}>{at.decision.finalFeedback}</p>
+                  )}
                 </div>
               )}
-            </Card>
-          )}
 
-          {/* Edit / Reject composer */}
-          {mode && canAct && (
-            <Card tokens={tokens} style={{ borderInlineStartWidth: 3, borderInlineStartColor: mode === "edit" ? tokens.developing : tokens.gap }}>
-              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary, marginBottom: 10 }}>
-                {mode === "edit" ? (lang === "ar" ? "تعديل الدرجة / التغذية الراجعة" : "Edit score / feedback") : (lang === "ar" ? "رفض — تقييم يدوي كامل" : "Reject — full manual evaluation")}
-              </div>
-              {mode === "reject" && (
-                <div style={{ marginBottom: 10 }}>
-                  <AlertStrip
-                    tokens={tokens}
-                    lang={lang}
-                    tone="violet"
-                    icon={<IconBan size={12} color={tokens.gap} />}
-                    title={lang === "ar" ? "يستبدل اقتراح الذكاء الاصطناعي بالكامل." : "Replaces the AI suggestion entirely."}
+              {/* actions */}
+              {!isFinal && mode === "view" && (
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 18, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <Btn tokens={tokens} lang={lang} onClick={() => { decide(openUnit.id, "approve", {}); afterDecision(lang === "ar" ? `اعتُمدت إجابة ${openUnit.studentName} بدرجة الذكاء الاصطناعي.` : `Approved ${openUnit.studentName}'s answer at the AI score.`); }}>
+                    <IconCheck size={13} color="#fff" /> {lang === "ar" ? "اعتماد" : "Approve"}
+                  </Btn>
+                  <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setMode("edit")}>{lang === "ar" ? "تعديل" : "Edit"}</Btn>
+                  <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setMode("reject")}>{lang === "ar" ? "رفض" : "Reject"}</Btn>
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setMode("resubmit")}>{lang === "ar" ? "طلب إعادة التسليم" : "Request resubmission"}</Btn>
+                </div>
+              )}
+
+              {!isFinal && mode === "edit" && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12 }}>
+                    <div>
+                      {mono(lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE")}
+                      <input type="number" min={0} max={max} value={editScore} onChange={(e) => setEditScore(e.target.value)} style={inputStyle(tokens, bFont)} className="genai-input" />
+                    </div>
+                    <div>
+                      {mono(lang === "ar" ? "التغذية النهائية" : "FINAL FEEDBACK")}
+                      <textarea rows={2} value={editFeedback} onChange={(e) => setEditFeedback(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <Btn tokens={tokens} lang={lang} onClick={() => { decide(openUnit.id, "edit", { score: Math.max(0, Math.min(max, Number(editScore) || 0)), feedback: editFeedback }); afterDecision(lang === "ar" ? `حُفظت الدرجة المعدّلة لـ${openUnit.studentName}.` : `Saved edited grade for ${openUnit.studentName}.`); }}>
+                      {lang === "ar" ? "حفظ الدرجة النهائية" : "Save final grade"}
+                    </Btn>
+                    <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setMode("view")}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
+                  </div>
+                </div>
+              )}
+
+              {!isFinal && mode === "reject" && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12 }}>
+                    <div>
+                      {mono(lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE")}
+                      <input type="number" min={0} max={max} value={editScore} onChange={(e) => setEditScore(e.target.value)} style={inputStyle(tokens, bFont)} className="genai-input" />
+                    </div>
+                    <div>
+                      {mono(lang === "ar" ? "سبب الرفض (اختياري)" : "REASON (OPTIONAL)")}
+                      <textarea rows={2} value={editFeedback} onChange={(e) => setEditFeedback(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" />
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <ConfirmBtn tokens={tokens} lang={lang} variant="violet"
+                      label={lang === "ar" ? "رفض التسليم" : "Reject submission"}
+                      confirmLabel={lang === "ar" ? "اضغط للتأكيد — رفض" : "Click again to confirm reject"}
+                      onConfirm={() => { decide(openUnit.id, "reject", { score: Math.max(0, Math.min(max, Number(editScore) || 0)), feedback: editFeedback }); afterDecision(lang === "ar" ? `رُفضت إجابة ${openUnit.studentName} بدرجة نهائية يدوية.` : `Rejected ${openUnit.studentName}'s answer with a manual final score.`); }}
+                    />
+                    <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setMode("view")}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
+                  </div>
+                </div>
+              )}
+
+              {!isFinal && mode === "resubmit" && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
+                  {mono(lang === "ar" ? "السبب الذي سيراه الطالب" : "REASON THE STUDENT WILL SEE")}
+                  <textarea rows={2} value={resubmitReason} onChange={(e) => setResubmitReason(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "مثال: أظهر الحساب ووضّح هل إعادة التحجيم عاجلة." : "e.g. Show the computation and state whether a resize is urgent."} />
+                  <div style={{ display: "flex", gap: 10, marginTop: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <Btn tokens={tokens} lang={lang} disabled={!resubmitReason.trim()} onClick={() => { requestResubmission(openUnit.id, resubmitReason.trim()); afterDecision(lang === "ar" ? `طُلبت إعادة التسليم من ${openUnit.studentName}.` : `Resubmission requested from ${openUnit.studentName}.`); }}>
+                      {lang === "ar" ? "طلب إعادة التسليم" : "Request resubmission"}
+                    </Btn>
+                    <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setMode("view")}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
+                  </div>
+                </div>
+              )}
+
+              {isFinal && (
+                <div style={{ marginTop: 18, flexDirection: isRtl ? "row-reverse" : "row", display: "flex" }}>
+                  <ConfirmBtn tokens={tokens} lang={lang} variant="ghost"
+                    label={lang === "ar" ? "إعادة فتح للمراجعة" : "Reopen for review"}
+                    confirmLabel={lang === "ar" ? "اضغط للتأكيد — إعادة فتح" : "Click again to confirm reopen"}
+                    onConfirm={() => { reopenUnit(openUnit.id); afterDecision(lang === "ar" ? `أُعيد فتح إجابة ${openUnit.studentName} للمراجعة.` : `Reopened ${openUnit.studentName}'s answer for review.`); }}
                   />
                 </div>
               )}
-              <Field label={lang === "ar" ? `الدرجة النهائية (0–${qMax})` : `Final score (0–${qMax})`} tokens={tokens} lang={lang} required>
-                <input value={scoreInput} onChange={(e) => setScoreInput(e.target.value)} type="number" min={0} max={qMax} style={{ ...inputStyle(tokens, bFont), fontFamily: MONO }} className="genai-input" />
-              </Field>
-              <Field label={lang === "ar" ? "التغذية الراجعة النهائية" : "Final feedback"} tokens={tokens} lang={lang} required>
-                <textarea value={feedbackInput} onChange={(e) => setFeedbackInput(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" />
-              </Field>
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setMode(null)}>{lang === "ar" ? "إلغاء" : "Cancel"}</Btn>
-                <Btn
-                  tokens={tokens}
-                  lang={lang}
-                  disabled={!scoreValid || !feedbackValid}
-                  onClick={() => { decide(unit.id, mode, { score: scoreNum, feedback: feedbackInput.trim() }); setMode(null); }}
-                >
-                  <IconCheck size={13} color="#fff" />
-                  {lang === "ar" ? "حفظ كدرجة نهائية" : "Save as final"}
-                </Btn>
-              </div>
-            </Card>
-          )}
+            </>
+          );
+        })()}
+      </Modal>
 
-          {/* The four actions (FR-REV-01) */}
-          {canAct && !mode && (
-            <Card tokens={tokens}>
-              <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint, letterSpacing: "0.06em", marginBottom: 10 }}>
-                {lang === "ar" ? "إجراء واحد من أربعة" : "EXACTLY ONE OF FOUR ACTIONS"}
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <Btn tokens={tokens} lang={lang} onClick={() => decide(unit.id, "approve", {})} style={{ justifyContent: "center" }} disabled={attempt.eval.aiScore === null}>
-                  <IconCheck size={13} color="#fff" />
-                  {lang === "ar" ? "اعتماد" : "Approve"}
-                </Btn>
-                <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => startEdit("edit")} style={{ justifyContent: "center" }}>
-                  <IconPencil size={13} color={tokens.primary} />
-                  {lang === "ar" ? "تعديل" : "Edit"}
-                </Btn>
-                <Btn tokens={tokens} lang={lang} variant="violet" onClick={() => startEdit("reject")} style={{ justifyContent: "center" }}>
-                  <IconBan size={13} color={tokens.gap} />
-                  {lang === "ar" ? "رفض" : "Reject"}
-                </Btn>
-                <Btn tokens={tokens} lang={lang} variant="ghost" onClick={onResubmit} style={{ justifyContent: "center" }}>
-                  <IconReply size={13} color={tokens.textSecondary} />
-                  {lang === "ar" ? "طلب إعادة تسليم" : "Request resubmission"}
-                </Btn>
-              </div>
-              {attempt.eval.aiScore === null && (
-                <div style={{ marginTop: 8, fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
-                  {lang === "ar" ? "لا درجة مقترحة (أدلة غير كافية) — الاعتماد معطّل؛ استخدم تعديل أو رفض أو إعادة التسليم." : "No suggested score (insufficient evidence) — Approve is disabled; use Edit, Reject, or Request resubmission."}
-                </div>
-              )}
-            </Card>
-          )}
-
-          {!isLatest && (
-            <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint }}>
-              {lang === "ar" ? "الإجراءات معطّلة على المحاولات السابقة." : "Actions are disabled on earlier attempts."}
-            </div>
-          )}
-        </div>
-      </div>
+      <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
     </div>
   );
 }

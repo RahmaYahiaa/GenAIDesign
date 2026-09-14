@@ -1,7 +1,7 @@
 import { AppState } from "../../components/AppShell";
 import { tk } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { Card, Btn, Chip, bFontFor, hFontFor } from "../../components/ModuleUI";
+import { Card, Btn, Chip, bFontFor, hFontFor, toast } from "../../components/ModuleUI";
 import { EmptyState } from "../../components/SharedUI";
 import { IconPlus, IconClipboard } from "../../components/Icons";
 
@@ -95,7 +95,7 @@ export default function AssignmentsTab({ state, setState, courseId }: { state: A
                         lang={lang}
                         variant="ghost"
                         title={lang === "ar" ? "إغلاق يدوي — يعطّل التسليم ويبقي سجل المراجعة" : "Manual close — disables submission, keeps review history"}
-                        onClick={() => setAssignmentStatus(a.id, "closed")}
+                        onClick={() => { setAssignmentStatus(a.id, "closed"); toast(lang === "ar" ? `أُغلق «${lang === "ar" ? a.title.ar : a.title.en}» — التسليم معطّل وسجل المراجعة باقٍ.` : `Closed "${a.title.en}" — submission disabled, review history kept.`); }}
                         style={{ padding: "8px 16px", fontSize: 12.5 }}
                       >
                         {lang === "ar" ? "إغلاق" : "Close"}

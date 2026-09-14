@@ -4,7 +4,7 @@ import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
 import {
   Card, Btn, Chip, inputStyle, textareaStyle, Toggle,
-  ConfidencePill, ScoreValue, BackCircle, bFontFor, hFontFor,
+  ConfidencePill, ScoreValue, BackCircle, bFontFor, hFontFor, toast,
 } from "../../components/ModuleUI";
 import { IconPlus, IconTrash, IconSparkle } from "../../components/Icons";
 import { QuestionDef, evaluateAnswer, COURSE_BY_ID, MISCONCEPTIONS } from "../../data/instructorModule";
@@ -79,6 +79,7 @@ export default function AssignmentCreateScreen({ state, setState }: { state: App
       showScore,
       questions: questions.map(toQuestionDef),
     });
+    toast(lang === "ar" ? "نُشر التكليف — الحالة: مفتوح." : "Assignment published — status Open.");
     setState({ ...state, screen: "assignment-review", assignmentId: id, tab: "assignments" });
   };
 
