@@ -3,19 +3,17 @@ import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
 import {
-  Card, Btn, Chip, Field, inputStyle, textareaStyle, VisibilityControl, Drawer,
-  ConfidencePill, ScoreValue, AlertStrip, bFontFor, hFontFor,
+  Card, Btn, Chip, inputStyle, textareaStyle, Toggle,
+  ConfidencePill, ScoreValue, BackCircle, bFontFor, hFontFor,
 } from "../../components/ModuleUI";
-import { CitationChip } from "../../components/SharedUI";
-import {
-  IconPlus, IconTrash, IconArrowRight, IconArrowLeft, IconSparkle, IconLock,
-  IconCheck, IconWarning, IconEye,
-} from "../../components/Icons";
-import { QuestionDef, evaluateAnswer, COURSE_BY_ID, approvedMaterials } from "../../data/instructorModule";
+import { IconPlus, IconTrash, IconSparkle } from "../../components/Icons";
+import { QuestionDef, evaluateAnswer, COURSE_BY_ID, MISCONCEPTIONS } from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Assignment creation (FR-AC-01..10). A form — not a file upload. Preview runs
-// the exact evaluation pipeline real submissions use (FR-AC-09).
+// Assignment builder (FR-AC-01..10) — reference d8: authoring column on the
+// start side, sticky "Preview grading" rail on the other. Preview runs the
+// exact evaluation pipeline real submissions use (FR-AC-09). A form, never a
+// file upload.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface QDraft {
@@ -28,7 +26,7 @@ interface QDraft {
 }
 
 let qSeq = 0;
-const newQ = (topicId: string): QDraft => ({ key: ++qSeq, prompt: "", topicId, maxScore: "10", referenceAnswer: "", rubric: "" });
+const newQ = (): QDraft => ({ key: ++qSeq, prompt: "", topicId: "", maxScore: "10", referenceAnswer: "", rubric: "" });
 
 export default function AssignmentCreateScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
   const { publishAssignment } = useInstructorModule();
@@ -37,15 +35,13 @@ export default function AssignmentCreateScreen({ state, setState }: { state: App
   const isRtl = lang === "ar";
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const Arrow = isRtl ? IconArrowLeft : IconArrowRight;
 
   const courseId = state.courseId ?? "CS301";
   const course = COURSE_BY_ID(courseId);
 
   const [title, setTitle] = useState("");
   const [showScore, setShowScore] = useState(false);        // FR-VIS-05 — default hidden
-  const [questions, setQuestions] = useState<QDraft[]>([newQ(course.topics[0]?.id ?? "")]);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [questions, setQuestions] = useState<QDraft[]>([newQ()]);
   const [previewQ, setPreviewQ] = useState(0);
   const [previewText, setPreviewText] = useState("");
   const [previewResult, setPreviewResult] = useState<ReturnType<typeof evaluateAnswer> | null>(null);
@@ -89,222 +85,239 @@ export default function AssignmentCreateScreen({ state, setState }: { state: App
   const previewDefs = questions.map(toQuestionDef);
   const runPreview = () => {
     const def = previewDefs[previewQ];
-    if (!def) return;
+    if (!def || !def.topicId || !previewText.trim()) return;
     setPreviewResult(evaluateAnswer(def, previewText, course));   // FR-AC-09 — same pipeline
   };
 
-  const selectStyle = { ...inputStyle(tokens, bFont), appearance: "none" as const, cursor: "pointer" };
+  const monoLabel = (text: string) => (
+    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 7 }}>
+      {text}
+    </div>
+  );
+  const caption = (text: string) => (
+    <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, marginTop: 6 }}>{text}</div>
+  );
 
   return (
-    <div style={{ padding: "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
-      <button
-        onClick={() => setState({ ...state, screen: "course-workspace", tab: "assignments" })}
-        style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, padding: 0, marginBottom: 12 }}
-      >
-        <Arrow size={12} color={tokens.textMuted} />
-        {lang === "ar" ? "رجوع إلى التكليفات" : "BACK TO ASSIGNMENTS"}
-      </button>
-
-      <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px" }}>
-        {lang === "ar" ? "تكليف جديد" : "New assignment"}
-      </h1>
-      <p style={{ fontSize: 12.5, color: tokens.textMuted, margin: "0 0 20px", fontFamily: bFont }}>
-        {course.id} · {lang === "ar" ? course.title.ar : course.title.en} · {lang === "ar" ? "نموذج تأليف — لا رفع ملفات" : "authoring form — no file upload"}
-      </p>
-
-      <Card tokens={tokens} style={{ marginBottom: 16 }}>
-        <Field label={lang === "ar" ? "عنوان التكليف" : "Assignment title"} tokens={tokens} lang={lang} required>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={lang === "ar" ? "مثال: التكليف 4 — الأشجار المتوازنة" : "e.g. Assignment 4 — Balanced trees"} style={inputStyle(tokens, bFont)} className="genai-input" />
-        </Field>
-
-        {/* Live visibility setting, default off, explicitly changeable later */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "12px 14px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-          <VisibilityControl on={showScore} onChange={() => setShowScore(!showScore)} tokens={tokens} lang={lang} />
-          <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted, lineHeight: 1.55, flex: 1 }}>
+    <div style={{ padding: "26px 32px", direction: isRtl ? "rtl" : "ltr" }}>
+      {/* Header */}
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 22, flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <BackCircle tokens={tokens} rtl={isRtl} onClick={() => setState({ ...state, screen: "course-workspace", tab: "assignments" })} />
+        <div style={{ textAlign: isRtl ? "right" : "left" }}>
+          <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+            {lang === "ar" ? `تكليف جديد · ${course.id}` : `New assignment · ${course.id}`}
+          </h1>
+          <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
             {lang === "ar"
-              ? "افتراضياً مخفية. هذا ليس قراراً لمرة واحدة: يمكنك تغييره في أي وقت لاحقاً من إعدادات التكليف أو من شاشة المراجعة."
-              : "Off by default. This is not a one-time decision locked at creation — you can flip it at any later time from assignment settings or the review screen."}
-          </div>
+              ? "التكليفات المنشورة تبدأ مفتوحة وتبقى مفتوحة حتى تغلقها."
+              : "Published assignments start Open and stay open until you close them."}
+          </p>
         </div>
-      </Card>
-
-      {/* Repeatable questions */}
-      {questions.map((q, i) => {
-        const topic = course.topics.find((t) => t.id === q.topicId);
-        const ungrounded = topic ? approvedMaterials(topic) === 0 : true;
-        return (
-          <Card key={q.key} tokens={tokens} style={{ marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <span style={{ width: 24, height: 24, borderRadius: 7, background: tokens.primaryLight, border: `1px solid ${tokens.primary}44`, display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: MONO, fontSize: 11, fontWeight: 700, color: tokens.primary }}>
-                  {i + 1}
-                </span>
-                <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>
-                  {lang === "ar" ? `السؤال ${i + 1}` : `Question ${i + 1}`}
-                </span>
-              </div>
-              {questions.length > 1 && (
-                <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setQuestions((qs) => qs.filter((x) => x.key !== q.key))} style={{ padding: "5px 9px", fontSize: 11 }}>
-                  <IconTrash size={12} color={tokens.textMuted} />
-                  {lang === "ar" ? "حذف" : "Remove"}
-                </Btn>
-              )}
-            </div>
-
-            <Field label={lang === "ar" ? "نص السؤال" : "Prompt"} tokens={tokens} lang={lang} required>
-              <textarea value={q.prompt} onChange={(e) => patchQ(q.key, { prompt: e.target.value })} style={textareaStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "اكتب نص السؤال…" : "Write the question prompt…"} />
-            </Field>
-
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12 }}>
-              <Field label={lang === "ar" ? "الموضوع (إلزامي)" : "Topic (required)"} tokens={tokens} lang={lang} required>
-                <select value={q.topicId} onChange={(e) => patchQ(q.key, { topicId: e.target.value })} style={selectStyle} className="genai-input">
-                  {course.topics.map((t) => (
-                    <option key={t.id} value={t.id}>{lang === "ar" ? t.label.ar : t.label.en}</option>
-                  ))}
-                </select>
-              </Field>
-              <Field label={lang === "ar" ? "الدرجة القصوى" : "Max score"} tokens={tokens} lang={lang} required>
-                <input type="number" min={1} value={q.maxScore} onChange={(e) => patchQ(q.key, { maxScore: e.target.value })} style={{ ...inputStyle(tokens, bFont), fontFamily: MONO }} className="genai-input" />
-              </Field>
-            </div>
-
-            {ungrounded && (
-              <div style={{ marginBottom: 12 }}>
-                <AlertStrip
-                  tokens={tokens}
-                  lang={lang}
-                  tone="slate"
-                  icon={<IconWarning size={12} color={tokens.noEvidence} />}
-                  title={lang === "ar" ? "هذا الموضوع بلا مادة معتمدة — ستُوجَّه إجاباته لمراجعة يدوية إجبارية." : "This topic has no approved material — its answers will route to mandatory manual review."}
-                />
-              </div>
-            )}
-
-            {/* Reference answer — always hidden from students */}
-            <Field
-              label={lang === "ar" ? "الإجابة المرجعية (اختياري)" : "Reference answer (optional)"}
-              tokens={tokens}
-              lang={lang}
-              hint={lang === "ar" ? "مخفية عن الطلاب دائماً — تُستخدم فقط لرفع دقة تقييم الذكاء الاصطناعي." : "Hidden from students at all times — used only to improve AI grading accuracy."}
-            >
-              <div style={{ position: "relative" }}>
-                <textarea value={q.referenceAnswer} onChange={(e) => patchQ(q.key, { referenceAnswer: e.target.value })} style={{ ...textareaStyle(tokens, bFont), paddingInlineEnd: 38 }} className="genai-input" />
-                <span title={lang === "ar" ? "مخفية عن الطلاب" : "Hidden from students"} style={{ position: "absolute", top: 9, insetInlineEnd: 10, display: "inline-flex" }}>
-                  <IconLock size={13} color={tokens.textFaint} />
-                </span>
-              </div>
-            </Field>
-
-            <Field
-              label={lang === "ar" ? "معايير التصحيح / Rubric (اختياري)" : "Grading criteria / rubric (optional)"}
-              tokens={tokens}
-              lang={lang}
-              hint={lang === "ar" ? "نص حر في هذه المرحلة — لا جدول أوزان مُهيكل بعد." : "Free text in this phase — no structured weighted table yet."}
-            >
-              <textarea value={q.rubric} onChange={(e) => patchQ(q.key, { rubric: e.target.value })} style={textareaStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "مثال: 4 نقاط للترتيب الصحيح · 3 لتسمية الطابور · 3 للتبرير" : "e.g. 4 pts correct order · 3 pts names the queue · 3 pts justification"} />
-            </Field>
-          </Card>
-        );
-      })}
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setQuestions((qs) => [...qs, newQ(qs[qs.length - 1]?.topicId ?? course.topics[0]?.id ?? "")])}>
-          <IconPlus size={13} color={tokens.primary} />
-          {lang === "ar" ? "إضافة سؤال" : "Add question"}
-        </Btn>
       </div>
 
-      {/* Publish + preview actions */}
-      <Card tokens={tokens} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.6, flex: 1, minWidth: 240 }}>
-          {lang === "ar"
-            ? "النشر يفتح التكليف فوراً ويبقى مفتوحاً حتى تغلقه يدوياً — لا مواعيد نهائية."
-            : "Publishing opens the assignment immediately; it stays open until you close it manually — there are no deadlines."}
-          {touched && !canPublish && (
-            <span style={{ color: tokens.gap, fontWeight: 600 }}>
-              {" "}{lang === "ar" ? "أكمل العنوان وحقول الأسئلة الإلزامية أولاً." : "Complete the title and required question fields first."}
-            </span>
-          )}
-        </div>
-        <div style={{ display: "flex", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => { setPreviewQ(0); setPreviewText(""); setPreviewResult(null); setPreviewOpen(true); }}>
-            <IconEye size={13} color={tokens.textMuted} />
-            {lang === "ar" ? "معاينة التقييم" : "Preview evaluation"}
-          </Btn>
-          <Btn tokens={tokens} lang={lang} onClick={publish}>
-            <IconCheck size={13} color="#fff" />
-            {lang === "ar" ? "نشر التكليف" : "Publish assignment"}
-          </Btn>
-        </div>
-      </Card>
-
-      {/* ── Preview drawer: real evaluation pipeline on a trial answer ── */}
-      <Drawer
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        tokens={tokens}
-        lang={lang}
-        width={620}
-        title={lang === "ar" ? "معاينة التقييم — وضع التجربة" : "Preview mode — trial evaluation"}
-        subtitle={lang === "ar"
-          ? "يستخدم نفس خط التقييم المستخدم للتسليمات الحقيقية تماماً — ما تراه هنا هو ما سيحدث للطلاب."
-          : "Runs the exact evaluation pipeline used for real student submissions — what you see here is exactly what real students will get."}
-      >
-        <Field label={lang === "ar" ? "اختر سؤالاً للتجربة" : "Pick a question to trial"} tokens={tokens} lang={lang}>
-          <select value={previewQ} onChange={(e) => { setPreviewQ(Number(e.target.value)); setPreviewResult(null); }} style={selectStyle} className="genai-input">
-            {questions.map((q, i) => (
-              <option key={q.key} value={i}>
-                {lang === "ar" ? `س${i + 1}` : `Q${i + 1}`} — {(q.prompt || (lang === "ar" ? "(بلا نص)" : "(no prompt)")).slice(0, 60)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        {previewDefs[previewQ] && (
-          <div style={{ marginBottom: 12, padding: "10px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 9 }}>
-            <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, lineHeight: 1.6, marginBottom: 8 }}>
-              {previewDefs[previewQ].prompt.en || (lang === "ar" ? "(بلا نص بعد)" : "(no prompt yet)")}
-            </div>
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              <Chip tokens={tokens} tone="primary">{course.topics.find((t) => t.id === previewDefs[previewQ].topicId)?.label[lang]}</Chip>
-              <Chip tokens={tokens}>{lang === "ar" ? `القصوى ${previewDefs[previewQ].maxScore}` : `max ${previewDefs[previewQ].maxScore}`}</Chip>
-              {previewDefs[previewQ].referenceAnswer && <Chip tokens={tokens} tone="peri"><IconLock size={9} color={tokens.developing} />{lang === "ar" ? "مرجع مُدخل" : "ref set"}</Chip>}
-              {previewDefs[previewQ].rubric && <Chip tokens={tokens} tone="peri">{lang === "ar" ? "rubric مُدخل" : "rubric set"}</Chip>}
-            </div>
-          </div>
-        )}
-
-        <Field label={lang === "ar" ? "إجابة تجريبية" : "Trial answer"} tokens={tokens} lang={lang}>
-          <textarea value={previewText} onChange={(e) => setPreviewText(e.target.value)} style={{ ...textareaStyle(tokens, bFont), minHeight: 120 }} className="genai-input" placeholder={lang === "ar" ? "اكتب إجابة كما لو كنت طالباً…" : "Type an answer as if you were a student…"} />
-        </Field>
-
-        <Btn tokens={tokens} lang={lang} onClick={runPreview} disabled={!previewText.trim()} style={{ width: "100%", justifyContent: "center", padding: "11px 0" }}>
-          <IconSparkle size={14} color="#fff" />
-          {lang === "ar" ? "شغّل التقييم" : "Run evaluation"}
-        </Btn>
-
-        {previewResult && (
-          <Card tokens={tokens} style={{ marginTop: 14, borderInlineStartWidth: 3, borderInlineStartColor: tokens.developing }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <ConfidencePill confidence={previewResult.confidence} tokens={tokens} lang={lang} />
-              <ScoreValue kind="ai" score={previewResult.aiScore} max={previewDefs[previewQ]?.maxScore ?? 10} tokens={tokens} lang={lang} />
-            </div>
-            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65, margin: "0 0 10px" }}>{previewResult.feedback}</p>
-            {previewResult.sources.length > 0 ? (
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                {previewResult.sources.map((s, i) => <CitationChip key={i} label={s} tokens={tokens} />)}
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 440px", gap: 24, alignItems: "start" }}>
+        {/* ── Authoring column ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+            {monoLabel(lang === "ar" ? "عنوان التكليف" : "ASSIGNMENT TITLE")}
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={lang === "ar" ? "مثال: ثوابت الشجرة الثنائية والاجتياز" : "e.g. BST Invariants & Traversal"}
+              style={inputStyle(tokens, bFont)}
+              className="genai-input"
+            />
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 14, padding: "12px 14px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <Toggle on={showScore} onChange={() => setShowScore(!showScore)} tokens={tokens} />
+              <div style={{ textAlign: isRtl ? "right" : "left" }}>
+                <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>
+                  {lang === "ar" ? "إظهار الدرجة للطالب" : "Show score to student"}
+                </div>
+                <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, marginTop: 2 }}>
+                  {lang === "ar" ? "مغلقة افتراضياً. يمكنك تغيير هذا لاحقاً في أي وقت." : "Off by default. You can change this later at any time."}
+                </div>
               </div>
-            ) : (
-              <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.noEvidence }}>{lang === "ar" ? "بلا مصادر موثّقة" : "NO GROUNDED SOURCES"}</div>
-            )}
-            <div style={{ marginTop: 12, fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
-              {lang === "ar"
-                ? "عدّل السؤال أو المرجع أو الـ rubric ثم أعد التشغيل — التغيير ينعكس فوراً على سلوك التسليمات الحقيقية."
-                : "Adjust the prompt, reference answer or rubric and re-run — the change carries over to real submissions identically."}
             </div>
           </Card>
-        )}
-      </Drawer>
+
+          {questions.map((q, i) => (
+            <Card tokens={tokens} key={q.key} style={{ padding: "18px 20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+                  {lang === "ar" ? `السؤال ${i + 1}` : `Question ${i + 1}`}
+                </div>
+                {questions.length > 1 && (
+                  <button
+                    onClick={() => { setQuestions((qs) => qs.filter((x) => x.key !== q.key)); setPreviewResult(null); }}
+                    title={lang === "ar" ? "حذف السؤال" : "Remove question"}
+                    style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, color: tokens.textFaint }}
+                  >
+                    <IconTrash size={14} color={tokens.textFaint} />
+                  </button>
+                )}
+              </div>
+
+              {monoLabel(lang === "ar" ? "نص السؤال" : "PROMPT")}
+              <textarea
+                value={q.prompt}
+                onChange={(e) => patchQ(q.key, { prompt: e.target.value })}
+                rows={3}
+                style={textareaStyle(tokens, bFont)}
+                className="genai-input"
+              />
+
+              <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 14, marginTop: 14 }}>
+                <div>
+                  {monoLabel(lang === "ar" ? "الموضوع (إجباري)" : "TOPIC (REQUIRED)")}
+                  <select
+                    value={q.topicId}
+                    onChange={(e) => patchQ(q.key, { topicId: e.target.value })}
+                    style={{ ...inputStyle(tokens, bFont), cursor: "pointer" }}
+                    className="genai-input"
+                  >
+                    <option value="">{lang === "ar" ? "اختر موضوعاً..." : "Choose a topic..."}</option>
+                    {course.topics.map((t) => (
+                      <option key={t.id} value={t.id}>{lang === "ar" ? t.label.ar : t.label.en}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  {monoLabel(lang === "ar" ? "الدرجة العظمى" : "MAX SCORE")}
+                  <input
+                    type="number"
+                    min={1}
+                    value={q.maxScore}
+                    onChange={(e) => patchQ(q.key, { maxScore: e.target.value })}
+                    style={inputStyle(tokens, bFont)}
+                    className="genai-input"
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                {monoLabel(lang === "ar" ? "الإجابة المرجعية (اختياري)" : "REFERENCE ANSWER (OPTIONAL)")}
+                <textarea
+                  value={q.referenceAnswer}
+                  onChange={(e) => patchQ(q.key, { referenceAnswer: e.target.value })}
+                  rows={2}
+                  style={textareaStyle(tokens, bFont)}
+                  className="genai-input"
+                />
+                {caption(lang === "ar" ? "مخفية عن الطلاب. تُستخدم فقط لتحسين دقة تقييم الذكاء الاصطناعي." : "Hidden from students. Used only to improve AI grading accuracy.")}
+              </div>
+
+              <div style={{ marginTop: 14 }}>
+                {monoLabel(lang === "ar" ? "معايير التصحيح / روبرك (اختياري)" : "GRADING CRITERIA / RUBRIC (OPTIONAL)")}
+                <textarea
+                  value={q.rubric}
+                  onChange={(e) => patchQ(q.key, { rubric: e.target.value })}
+                  rows={2}
+                  style={textareaStyle(tokens, bFont)}
+                  className="genai-input"
+                />
+                {caption(lang === "ar" ? "نص حر في هذه المرحلة." : "Free text in this phase.")}
+              </div>
+            </Card>
+          ))}
+
+          <button
+            onClick={() => setQuestions((qs) => [...qs, newQ()])}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "12px 0", borderRadius: 12, cursor: "pointer",
+              background: tokens.card, border: `1px solid ${tokens.cardBorder}`,
+              color: tokens.textSecondary, fontFamily: bFont, fontWeight: 500, fontSize: 13,
+            }}
+          >
+            <IconPlus size={14} color={tokens.textSecondary} />
+            {lang === "ar" ? "إضافة سؤال" : "Add question"}
+          </button>
+
+          <div>
+            <Btn tokens={tokens} lang={lang} onClick={publish} style={{ width: "100%", padding: "12px 0", fontSize: 13.5 }}>
+              {lang === "ar" ? "نشر التكليف" : "Publish assignment"}
+            </Btn>
+            {touched && !canPublish && (
+              <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.gap, marginTop: 8, textAlign: isRtl ? "right" : "left" }}>
+                {lang === "ar"
+                  ? "العنوان إجباري، وكل سؤال يحتاج نصاً وموضوعاً ودرجة عظمى صالحة."
+                  : "A title is required, and every question needs a prompt, a topic, and a valid max score."}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Preview rail (FR-AC-09) ── */}
+        <Card tokens={tokens} style={{ padding: "18px 20px", position: "sticky", top: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <IconSparkle size={15} color={tokens.primary} />
+            <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+              {lang === "ar" ? "معاينة التقييم" : "Preview grading"}
+            </span>
+          </div>
+          <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: "0 0 16px", lineHeight: 1.55 }}>
+            {lang === "ar"
+              ? "اكتب إجابة تجريبية وشاهد بالضبط ما سيفعله الذكاء الاصطناعي للطلاب الحقيقيين."
+              : "Type a trial answer and see exactly what the AI will do for real students."}
+          </p>
+
+          {monoLabel(lang === "ar" ? "السؤال للمعاينة" : "QUESTION TO PREVIEW")}
+          <select
+            value={previewQ}
+            onChange={(e) => { setPreviewQ(Number(e.target.value)); setPreviewResult(null); }}
+            style={{ ...inputStyle(tokens, bFont), cursor: "pointer", marginBottom: 14 }}
+            className="genai-input"
+          >
+            {questions.map((_, i) => (
+              <option key={i} value={i}>{lang === "ar" ? `السؤال ${i + 1}` : `Question ${i + 1}`}</option>
+            ))}
+          </select>
+
+          {monoLabel(lang === "ar" ? "الإجابة التجريبية" : "TRIAL ANSWER")}
+          <textarea
+            value={previewText}
+            onChange={(e) => setPreviewText(e.target.value)}
+            rows={5}
+            style={textareaStyle(tokens, bFont)}
+            className="genai-input"
+          />
+
+          <Btn
+            tokens={tokens}
+            lang={lang}
+            variant="soft"
+            disabled={!previewText.trim() || !previewDefs[previewQ]?.topicId}
+            onClick={runPreview}
+            style={{ width: "100%", padding: "10px 0", fontSize: 12.5, marginTop: 12 }}
+          >
+            {lang === "ar" ? "تقييم الإجابة التجريبية" : "Grade trial answer"}
+          </Btn>
+
+          {previewResult && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <ScoreValue kind="ai" score={previewResult.aiScore} max={previewDefs[previewQ].maxScore} tokens={tokens} lang={lang} />
+                <ConfidencePill confidence={previewResult.confidence} tokens={tokens} lang={lang} />
+              </div>
+              <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.6, margin: "0 0 10px" }}>
+                {previewResult.feedback}
+              </p>
+              {previewResult.misconceptions.length > 0 && (
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  {previewResult.misconceptions.map((id) => (
+                    <Chip key={id} tokens={tokens} tone="violet">
+                      {MISCONCEPTIONS.find((m) => m.id === id)?.text ?? id}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              <div style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textFaint, marginTop: 10 }}>
+                {lang === "ar" ? "معاينة فقط — لا يُحفظ شيء." : "Preview only — nothing is saved."}
+              </div>
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { Tokens, MONO } from "../tokens";
 import type { Confidence, Lang } from "../data/instructorModule";
-import { IconWarning, IconCheck, IconSparkle, IconEye, IconEyeOff } from "./Icons";
+import { IconWarning, IconCheck, IconSparkle, IconEye, IconEyeOff, IconChevronLeft } from "./Icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared primitives for the Instructor Workspace module. Visual language is
@@ -330,5 +330,56 @@ export function Th({ children, tokens, align = "left" }: { children?: ReactNode;
     <th style={{ textAlign: align, padding: "7px 10px", fontSize: 10, fontFamily: MONO, fontWeight: 600, color: tokens.textFaint, textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: `1px solid ${tokens.cardBorder}`, whiteSpace: "nowrap" }}>
       {children}
     </th>
+  );
+}
+
+// Segmented pill tabs — the workspace switcher from the reference design
+// (Assignments | Analytics | Audit Trail). Active pill = card bg + primary
+// border + primary text; idle pills sit on the inset surface.
+export function PillTabs({ tabs, active, onSelect, tokens, lang }: {
+  tabs: { id: string; label: string }[];
+  active: string; onSelect: (id: string) => void; tokens: Tokens; lang: Lang;
+}) {
+  const bFont = bFontFor(lang);
+  return (
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: lang === "ar" ? "row-reverse" : "row" }}>
+      {tabs.map((t) => {
+        const on = t.id === active;
+        return (
+          <button
+            key={t.id}
+            onClick={() => onSelect(t.id)}
+            style={{
+              padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+              background: on ? tokens.card : tokens.inset,
+              border: `1px solid ${on ? tokens.primary : "transparent"}`,
+              color: on ? tokens.primary : tokens.textMuted,
+              fontFamily: bFont, fontWeight: on ? 600 : 500, fontSize: 13,
+              transition: "background .15s, color .15s, border-color .15s",
+            }}
+          >
+            {t.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// Small circular back button used by workspace / review / student headers.
+export function BackCircle({ onClick, tokens, rtl }: { onClick: () => void; tokens: Tokens; rtl?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label="back"
+      style={{
+        width: 30, height: 30, borderRadius: "50%", flexShrink: 0, cursor: "pointer",
+        background: tokens.inset, border: "none", color: tokens.textSecondary,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        marginTop: 2, transform: rtl ? "rotate(180deg)" : undefined,
+      }}
+    >
+      <IconChevronLeft size={14} color={tokens.textSecondary} />
+    </button>
   );
 }

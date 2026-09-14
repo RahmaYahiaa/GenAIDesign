@@ -1,14 +1,14 @@
 import { AppState } from "../../components/AppShell";
-import { tk, MONO } from "../../tokens";
+import { tk } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { Card, Btn, Chip, StatusPill, bFontFor, hFontFor, Th } from "../../components/ModuleUI";
+import { Card, Btn, Chip, bFontFor, hFontFor } from "../../components/ModuleUI";
 import { EmptyState } from "../../components/SharedUI";
-import { IconPlus, IconClipboard, IconBan, IconRefresh, IconEye, IconEyeOff, IconArrowRight, IconArrowLeft, IconClock } from "../../components/Icons";
-import { fmtAgo } from "../../data/instructorModule";
+import { IconPlus, IconClipboard } from "../../components/Icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Assignments list — the middle screen between the course workspace and an
-// individual assignment. Close/Reopen live here too, for convenience.
+// Assignments tab — reference d3: a stacked list of assignment cards (not a
+// table). Each card shows its status chip, a one-line meta summary with the
+// pending-review count emphasised, and Close / Open controls.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function AssignmentsTab({ state, setState, courseId }: { state: AppState; setState: (s: AppState) => void; courseId: string }) {
@@ -18,18 +18,24 @@ export default function AssignmentsTab({ state, setState, courseId }: { state: A
   const isRtl = lang === "ar";
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const Arrow = isRtl ? IconArrowLeft : IconArrowRight;
 
   const assignments = mod.assignments.filter((a) => a.courseId === courseId);
-  const course = mod.courses.find((c) => c.id === courseId);
+
+  const openReview = (id: string) =>
+    setState({ ...state, screen: "assignment-review", courseId, assignmentId: id, tab: "assignments" });
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>
-          {lang === "ar"
-            ? "كل تكليفات هذا المقرر. المغلق يبقى قابلاً للاطلاع على تاريخ المراجعات مع تعطيل التسليم."
-            : "Every assignment in this course. Closed assignments keep their full review history, with submission disabled."}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <div style={{ textAlign: isRtl ? "right" : "left" }}>
+          <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 20, color: tokens.textPrimary, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
+            {lang === "ar" ? "التكليفات" : "Assignments"}
+          </h2>
+          <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
+            {lang === "ar"
+              ? "كل تكليف في هذا المقرر. المفتوح يبقى مفتوحاً حتى تغلقه بنفسك."
+              : "Every assignment in this course. Open stays open until you close it."}
+          </p>
         </div>
         <Btn tokens={tokens} lang={lang} onClick={() => setState({ ...state, screen: "assignment-create", courseId, assignmentId: undefined })}>
           <IconPlus size={13} color="#fff" />
@@ -51,91 +57,59 @@ export default function AssignmentsTab({ state, setState, courseId }: { state: A
           />
         </Card>
       ) : (
-        <Card tokens={tokens} style={{ padding: 0, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <Th tokens={tokens}>{lang === "ar" ? "التكليف" : "Assignment"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الحالة" : "Status"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "تسلّم" : "Received"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "بانتظار المراجعة" : "Pending review"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "المواضيع" : "Topics"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الدرجة للطالب" : "Score visibility"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "إجراءات" : "Actions"}</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.map((a, i) => {
-                const units = mod.units.filter((u) => u.assignmentId === a.id);
-                const received = new Set(units.map((u) => u.studentId)).size;
-                const answersReceived = units.reduce((s, u) => s + u.attempts.length, 0);
-                const pending = units.filter((u) => u.status === "awaiting_review").length;
-                const topics = new Set(a.questions.map((q) => q.topicId)).size;
-                return (
-                  <tr key={a.id} style={{ borderBottom: i < assignments.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
-                    <td style={{ padding: "13px 16px", maxWidth: 340 }}>
-                      <button
-                        onClick={() => setState({ ...state, screen: "assignment-review", courseId, assignmentId: a.id, tab: "assignments" })}
-                        style={{ display: "block", background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: isRtl ? "right" : "left" }}
-                      >
-                        <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary, marginBottom: 3 }}>{lang === "ar" ? a.title.ar : a.title.en}</div>
-                        <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint, display: "flex", gap: 8, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                          <span>{a.questions.length} {lang === "ar" ? "أسئلة" : "questions"}</span>
-                          <span>·</span>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><IconClock size={10} color={tokens.textFaint} />{fmtAgo(a.createdAt, lang)}</span>
-                        </div>
-                      </button>
-                    </td>
-                    <td style={{ padding: "13px 16px" }}><StatusPill status={a.status} tokens={tokens} lang={lang} /></td>
-                    <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                      <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: tokens.textPrimary }}>{received}</div>
-                      <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint }}>{answersReceived} {lang === "ar" ? "إجابة" : "answers"}</div>
-                    </td>
-                    <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                      <span style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: pending > 0 ? tokens.developing : tokens.noEvidence }}>{pending}</span>
-                    </td>
-                    <td style={{ padding: "13px 16px", textAlign: "right" }}>
-                      <span style={{ fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{topics}</span>
-                    </td>
-                    <td style={{ padding: "13px 16px" }}>
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: bFont, fontSize: 11, color: a.showScoreToStudent ? tokens.primary : tokens.textFaint }}>
-                        {a.showScoreToStudent ? <IconEye size={13} color={tokens.primary} /> : <IconEyeOff size={13} color={tokens.textFaint} />}
-                        {a.showScoreToStudent ? (lang === "ar" ? "ظاهرة" : "Visible") : (lang === "ar" ? "مخفية" : "Hidden")}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {assignments.map((a) => {
+            const units = mod.units.filter((u) => u.assignmentId === a.id);
+            const received = units.length;
+            const pending = units.filter((u) => u.status === "awaiting_review").length;
+            const topics = new Set(a.questions.map((q) => q.topicId)).size;
+            const open = a.status === "open";
+            return (
+              <Card tokens={tokens} key={a.id} style={{ padding: "16px 20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+                        {lang === "ar" ? a.title.ar : a.title.en}
                       </span>
-                    </td>
-                    <td style={{ padding: "13px 16px" }}>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                        <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setState({ ...state, screen: "assignment-review", courseId, assignmentId: a.id, tab: "assignments" })} style={{ padding: "5px 10px", fontSize: 11 }}>
-                          {lang === "ar" ? "مراجعة" : "Review"}
-                          <Arrow size={12} color={tokens.primary} />
-                        </Btn>
-                        {a.status === "open" ? (
-                          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setAssignmentStatus(a.id, "closed")} style={{ padding: "5px 10px", fontSize: 11 }} title={lang === "ar" ? "إغلاق يدوي — يعطّل التسليم" : "Manual close — disables submission"}>
-                            <IconBan size={12} color={tokens.textMuted} />
-                            {lang === "ar" ? "إغلاق" : "Close"}
-                          </Btn>
-                        ) : (
-                          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setAssignmentStatus(a.id, "open")} style={{ padding: "5px 10px", fontSize: 11 }} title={lang === "ar" ? "إعادة فتح يدوية" : "Manual reopen"}>
-                            <IconRefresh size={12} color={tokens.textMuted} />
-                            {lang === "ar" ? "إعادة فتح" : "Reopen"}
-                          </Btn>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </Card>
-      )}
-
-      {course && (
-        <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, marginTop: 14, lineHeight: 1.6, textAlign: isRtl ? "right" : "left" }}>
-          {lang === "ar"
-            ? "لا مواعيد نهائية في هذه الوحدة: التكليف مفتوح أو مغلق فقط، ويتحكم المدرّس بالحالة يدوياً."
-            : "No deadlines exist in this module: an assignment is simply Open or Closed, controlled manually by the instructor."}
-        </p>
+                      <Chip tokens={tokens} tone={open ? "primary" : "slate"}>
+                        {open ? (lang === "ar" ? "مفتوح" : "Open") : (lang === "ar" ? "مغلق" : "Closed")}
+                      </Chip>
+                    </div>
+                    <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span>{received} {lang === "ar" ? "تسلّم" : "received"}</span>
+                      <span>·</span>
+                      <span style={{ fontWeight: pending > 0 ? 700 : 500, color: pending > 0 ? tokens.primary : tokens.textMuted }}>
+                        {pending} {lang === "ar" ? "بانتظار المراجعة" : "pending review"}
+                      </span>
+                      <span>·</span>
+                      <span>{topics} {lang === "ar" ? (topics === 1 ? "موضوع" : "مواضيع") : (topics === 1 ? "topic" : "topics")}</span>
+                      <span>·</span>
+                      <span>{a.questions.length} {lang === "ar" ? (a.questions.length === 1 ? "سؤال" : "أسئلة") : (a.questions.length === 1 ? "question" : "questions")}</span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    {open && (
+                      <Btn
+                        tokens={tokens}
+                        lang={lang}
+                        variant="ghost"
+                        title={lang === "ar" ? "إغلاق يدوي — يعطّل التسليم ويبقي سجل المراجعة" : "Manual close — disables submission, keeps review history"}
+                        onClick={() => setAssignmentStatus(a.id, "closed")}
+                        style={{ padding: "8px 16px", fontSize: 12.5 }}
+                      >
+                        {lang === "ar" ? "إغلاق" : "Close"}
+                      </Btn>
+                    )}
+                    <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => openReview(a.id)} style={{ padding: "8px 16px", fontSize: 12.5 }}>
+                      {lang === "ar" ? "فتح" : "Open"}
+                    </Btn>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
       )}
     </>
   );

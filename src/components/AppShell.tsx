@@ -6,7 +6,7 @@ import {
   IconClipboard,
 } from "./Icons";
 
-export type WorkspaceTab = "overview" | "assignments" | "analytics" | "audit";
+export type WorkspaceTab = "assignments" | "analytics" | "audit";
 
 type Screen =
   | "student-dashboard" | "courses" | "mastery" | "tutor"
