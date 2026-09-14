@@ -496,13 +496,24 @@ export const SEED_UNITS: ReviewUnit[] = [
     att(1, "Average waiting 4.33 with quantum 2; the quantum does not matter much here.", ago(15),
       { aiScore: 4, confidence: "medium", feedback: "Average is off by one context switch and the quantum remark contradicts RR preemption.", misconceptions: ["mc-sched-quantum"], sources: ["CS401 · Lec 4"] }),
   ]),
-  unit("u-sched-q2-tariq", "as-sched", "CS401", "q2", "st-tariq", "Tariq Al-Nasser", "awaiting_review", [
+  unit("u-sched-q2-tariq", "as-sched", "CS401", "q2", "st-tariq", "Tariq Al-Nasser", "final", [
     att(1, "SJF starves long processes.", ago(14),
-      { aiScore: 3, confidence: "low", feedback: "Starvation named but ageing never addressed.", misconceptions: [], sources: ["CS401 · Lec 4"] }),
+      { aiScore: 3, confidence: "low", feedback: "Starvation named but ageing never addressed.", misconceptions: [], sources: ["CS401 · Lec 4"] },
+      { decision: { action: "edit", finalScore: 4, finalFeedback: "Raised to 4: starvation is correctly named; ageing omitted but the trade-off is stated.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-09-07T09:12:00") } }),
   ]),
-  unit("u-sched-q2-karim", "as-sched", "CS401", "q2", "st-karim", "Karim Fathi", "awaiting_review", [
+  unit("u-sched-q2-karim", "as-sched", "CS401", "q2", "st-karim", "Karim Fathi", "final", [
     att(1, "Ageing fixes priority inversion I think.", ago(13),
-      { aiScore: 2, confidence: "insufficient_evidence", feedback: "Too thin to ground a score; manual review required.", misconceptions: [], sources: [] }),
+      { aiScore: 2, confidence: "insufficient_evidence", feedback: "Too thin to ground a score; manual review required.", misconceptions: [], sources: [] },
+      { decision: { action: "reject", finalScore: 1, finalFeedback: "Rejected: ageing addresses starvation, not priority inversion — the answer conflates the two.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-09-07T09:20:00") } }),
+  ]),
+  // ── CS401 · Sarah (demo student) — submitted, under review (reference d9 state) ──
+  unit("u-sched-q1-sarah", "as-sched", "CS401", "q1", DEMO_STUDENT_ID, "Sarah Al-Rashidi", "awaiting_review", [
+    att(1, "RR(2): P1 0-2, P2 2-4, P1 4-5, P3 5-7, P2 7-8; waiting times 2, 3, 2 → average 2.33. The quantum matters: with quantum 4, P1 completes in a single slice and the average waiting time rises.", ago(20),
+      { aiScore: 6, confidence: "medium", feedback: "Trace is correct but the quantum comparison is asserted rather than computed.", misconceptions: [], sources: ["CS401 · Lec 4"] }),
+  ]),
+  unit("u-sched-q2-sarah", "as-sched", "CS401", "q2", DEMO_STUDENT_ID, "Sarah Al-Rashidi", "awaiting_review", [
+    att(1, "SJF minimises average waiting time but starves long jobs; ageing fixes that by raising priority with wait time.", ago(20),
+      { aiScore: 7, confidence: "medium", feedback: "Both halves named; the mechanism of ageing needs one more sentence to be complete.", misconceptions: [], sources: ["CS401 · Lec 4"] }),
   ]),
   // ── CS303 · SQL Joins & Indexes — 2 pending (1 quick) ──
   unit("u-sql-q1-lina", "as-sql", "CS303", "q1", "st-lina", "Lina Hassan", "awaiting_review", [

@@ -1,12 +1,15 @@
 # Instructor Workspace — FRD traceability
 
-> **Rebuild status (reference-screenshot pass):** Parts 1–6 complete.
+> **Rebuild status (reference-screenshot pass):** COMPLETE — Parts 1–7.
 > Home = d1/d2 · Workspace shell + Assignments + Builder = d3/d8 · Review +
 > submission modal = d4/d5/d12 · Remedial **modal** (was a drawer) = d10/d11 ·
 > Analytics = d6/d13 (materials modal lives under "Open materials") ·
-> Audit = d7 (five columns, no filters). UX pass: toast bus, two-step
-> confirms (no window.confirm), Esc/X/scroll on modals, focus-visible rings.
-> Part 7 (student side + scope) pending.
+> Audit = d7 (five columns, no filters) · Student side = d9 (all questions
+> stacked, read-only after submit, single submit action) + inbox cards.
+> UX pass: toast bus, two-step confirms (no window.confirm), Esc/X/scroll on
+> modals, focus-visible rings. Scope rule intact: personal courses expose no
+> assignment affordance at all; the student sidebar keeps its FRD-compliant
+> "Assignments" item (reference build entered it elsewhere).
 
 Build note for the module specified in `GenAI-Instructor-Module-FRD.pdf`. Everything below is
 implemented on top of the existing design system **as-is**: same `tokens.ts` cobalt ladder, same

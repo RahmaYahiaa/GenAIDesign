@@ -29,6 +29,9 @@ const cases = [
   ["StudentAssignment(draft)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-bst" }],
   ["StudentAssignment(resubmit)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-hash" }],
   ["StudentAssignment(closed)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-quiz" }],
+  ["StudentAssignment(submitted/d9)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS401", assignmentId: "as-sched" }],
+  ["StudentAssignment(resubmit/dark/ar)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: true, lang: "ar", courseId: "CS301", assignmentId: "as-hash" }],
+  ["StudentAssignments(dark/ar)", "/src/screens/student/StudentAssignmentsScreen.tsx", { screen: "student-assignments", dark: true, lang: "ar" }],
 ];
 
 let failed = 0;
