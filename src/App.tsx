@@ -14,6 +14,7 @@ import AssignmentReviewScreen from "./screens/instructor/AssignmentReviewScreen"
 import InstructorScreen from "./screens/InstructorScreen";
 import ContentStudioScreen from "./screens/instructor/ContentStudioScreen";
 import StudentsScreen from "./screens/instructor/StudentsScreen";
+import AuditorHomeScreen from "./screens/instructor/AuditorHomeScreen";
 import StudentAssignmentsScreen from "./screens/student/StudentAssignmentsScreen";
 import StudentAssignmentScreen from "./screens/student/StudentAssignmentScreen";
 import { InstructorModuleProvider } from "./store/InstructorStore";
@@ -26,6 +27,9 @@ const INSTRUCTOR_SCREENS = [
   "instructor-home", "course-workspace", "assignment-create", "assignment-review", "instructor",
   "content-studio", "students",
 ] as const;
+
+/** Screens rendered inside the read-only auditor shell. */
+const AUDITOR_SCREENS = ["auditor-home"] as const;
 
 // ─── Register Screen ──────────────────────────────────────────────────────────
 function RegisterScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
@@ -302,6 +306,7 @@ export default function App() {
 
   const isAuth = state.screen === "login" || state.screen === "register";
   const isInstructor = (INSTRUCTOR_SCREENS as readonly string[]).includes(state.screen);
+  const isAuditor = (AUDITOR_SCREENS as readonly string[]).includes(state.screen);
 
   const renderScreen = () => {
     switch (state.screen) {
@@ -324,6 +329,7 @@ export default function App() {
       case "instructor": return <InstructorScreen state={state} setState={setState} />;
       case "content-studio": return <ContentStudioScreen state={state} setState={setState} />;
       case "students": return <StudentsScreen state={state} setState={setState} />;
+      case "auditor-home": return <AuditorHomeScreen state={state} setState={setState} />;
       default: return null;
     }
   };
@@ -340,7 +346,7 @@ export default function App() {
 
   return (
     <InstructorModuleProvider>
-      <AppShell state={state} setState={setState} role={isInstructor ? "instructor" : "student"}>
+      <AppShell state={state} setState={setState} role={isAuditor ? "auditor" : isInstructor ? "instructor" : "student"}>
         {renderScreen()}
       </AppShell>
     </InstructorModuleProvider>

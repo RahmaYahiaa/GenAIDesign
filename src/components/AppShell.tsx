@@ -4,7 +4,7 @@ import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
   IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
-  IconClipboard, IconUsers, IconSparkle,
+  IconClipboard, IconUsers, IconSparkle, IconShield,
 } from "./Icons";
 
 export type WorkspaceTab = "assignments" | "analytics" | "audit";
@@ -14,7 +14,8 @@ type Screen =
   | "diagnostic" | "practice" | "reassessment" | "profile"
   | "student-assignments" | "student-assignment"
   | "instructor-home" | "course-workspace" | "assignment-create"
-  | "assignment-review" | "instructor" | "content-studio" | "students";
+  | "assignment-review" | "instructor" | "content-studio" | "students"
+  | "auditor-home";
 
 export type { Screen };
 
@@ -64,6 +65,10 @@ const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: Reac
   { id: "instructor", labelEn: "Legacy Analytics", labelAr: "التحليلات القديمة", Icon: IconDashboard },
 ];
 
+const AUDITOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { id: "auditor-home", labelEn: "Audit Oversight", labelAr: "الرقابة والتدقيق", Icon: IconShield },
+];
+
 /** Sub-screens that should keep their parent nav item highlighted. */
 const NAV_PARENT: Partial<Record<Screen, Screen>> = {
   "student-assignment": "student-assignments",
@@ -75,7 +80,7 @@ interface AppShellProps {
   state: AppState;
   setState: (s: AppState) => void;
   children: React.ReactNode;
-  role?: "student" | "instructor";
+  role?: "student" | "instructor" | "auditor";
 }
 
 function Tooltip({ label, children, side = "right" }: { label: string; children: React.ReactNode; side?: "right" | "left" }) {
@@ -129,7 +134,7 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const cardBorder = T.cardBorder;
   const topbarBg = dark ? "rgba(10,14,35,0.95)" : "rgba(244,246,249,0.95)";
 
-  const baseNav = role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
+  const baseNav = role === "auditor" ? AUDITOR_NAV : role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
   // FR-SCOPE-03 — a personal-only account sees no assignment affordance at all.
   const nav = role === "student" && state.personalOnly
     ? baseNav.filter((i) => i.id !== "student-assignments")
@@ -140,7 +145,9 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const ctxCourse = state.courseId ?? "CS301";
   const contextLabel = role === "instructor"
     ? (lang === "ar" ? `لوحة تحكم المدرس — ${ctxCourse}` : `Instructor Dashboard — ${ctxCourse}`)
-    : `CS301 · ${lang === "ar" ? "الأسبوع 9" : "Week 9"}`;
+    : role === "auditor"
+      ? (lang === "ar" ? `الرقابة والتدقيق — ${ctxCourse} (قراءة فقط)` : `Audit Oversight — ${ctxCourse} (read-only)`)
+      : `CS301 · ${lang === "ar" ? "الأسبوع 9" : "Week 9"}`;
 
   const navItem = (item: typeof STUDENT_NAV[0]) => {
     const isActive = activeScreen === item.id;
@@ -276,7 +283,7 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               textAlign: isRtl ? "right" : "left",
             }}
           >
-            {lang === "ar" ? (role === "student" ? "طالب" : "مدرس") : role === "student" ? "STUDENT" : "INSTRUCTOR"}
+            {lang === "ar" ? (role === "student" ? "طالب" : role === "auditor" ? "مدقق" : "مدرس") : role === "student" ? "STUDENT" : role === "auditor" ? "AUDITOR" : "INSTRUCTOR"}
           </div>
         </div>
 
@@ -327,16 +334,18 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               flexShrink: 0,
             }}
           >
-            {role === "instructor" ? "NM" : "SA"}
+            {role === "instructor" ? "NM" : role === "auditor" ? "HZ" : "SA"}
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: textPrimary, fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {role === "instructor"
+              {role === "auditor"
+                ? (lang === "ar" ? "د. هالة زيدان — ضمان الجودة" : "Dr. Hala Zaydan — Quality Assurance")
+                : role === "instructor"
                 ? (lang === "ar" ? "أ.د. نادية المانع" : "Prof. Dr. Nadia Al-Manea")
                 : (lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi")}
             </div>
             <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>
-              {role === "instructor" ? "CS301 · CS401 · CS303" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS401"}
+              {role === "auditor" ? (lang === "ar" ? "إشراف · كل المقررات المؤسسية" : "Oversight · all institutional courses") : role === "instructor" ? "CS301 · CS401 · CS303" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS401"}
             </div>
           </div>
         </div>

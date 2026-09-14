@@ -38,7 +38,7 @@ export default function LoginScreen({ state, setState }: Props) {
   const isRtl = lang === "ar";
   const hFont = "'Plus Jakarta Sans', sans-serif";
   const bFont = "'Inter', sans-serif";
-  const [role, setRole] = useState<"student" | "instructor" | "admin">("student");
+  const [role, setRole] = useState<"student" | "instructor" | "admin" | "auditor">("student");
   const [showPass, setShowPass] = useState(false);
 
   const inputStyle: React.CSSProperties = {
@@ -288,8 +288,8 @@ export default function LoginScreen({ state, setState }: Props) {
             <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: tokens.textMuted, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.07em", textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar" ? "الدور" : "Role"}
             </label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, padding: 4, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
-              {(["student", "instructor", "admin"] as const).map((r) => (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4, padding: 4, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
+              {(["student", "instructor", "admin", "auditor"] as const).map((r) => (
                 <button
                   key={r}
                   onClick={() => setRole(r)}
@@ -307,7 +307,7 @@ export default function LoginScreen({ state, setState }: Props) {
                   }}
                 >
                   {lang === "ar"
-                    ? r === "student" ? "طالب" : r === "instructor" ? "مدرس" : "مدير"
+                    ? r === "student" ? "طالب" : r === "instructor" ? "مدرس" : r === "admin" ? "مدير" : "مدقق"
                     : r.charAt(0).toUpperCase() + r.slice(1)}
                 </button>
               ))}
@@ -342,7 +342,7 @@ export default function LoginScreen({ state, setState }: Props) {
           </div>
 
           <button
-            onClick={() => setState({ ...state, screen: role === "instructor" ? "instructor-home" : "student-dashboard", courseId: role === "instructor" ? "CS301" : state.courseId })}
+            onClick={() => setState({ ...state, screen: role === "instructor" ? "instructor-home" : role === "auditor" ? "auditor-home" : "student-dashboard", courseId: role === "instructor" || role === "auditor" ? "CS301" : state.courseId })}
             className="genai-cta"
             style={{
               width: "100%", padding: "12px 0", borderRadius: 10,

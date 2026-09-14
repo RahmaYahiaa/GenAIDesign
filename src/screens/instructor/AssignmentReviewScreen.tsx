@@ -41,6 +41,9 @@ export default function AssignmentReviewScreen({ state, setState }: { state: App
   const [attemptIdx, setAttemptIdx] = useState<number | null>(null);
   const [refOpen, setRefOpen] = useState(false);
   const [zoom, setZoom] = useState<string | null>(null);
+  // selective bulk approve — a unit absent from the map counts as selected,
+  // so the default remains "approve all quick items" with opt-out checkboxes
+  const [deselected, setDeselected] = useState<Record<string, true>>({});
   // spec 4.7 — useful filters over the submission groups
   const [query, setQuery] = useState("");
   const [confFilter, setConfFilter] = useState<"all" | Confidence>("all");
@@ -221,12 +224,39 @@ export default function AssignmentReviewScreen({ state, setState }: { state: App
           <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا شيء في نطاق الثقة العالية الآن." : "Nothing waiting in the high-confidence band right now."}</div>
         ) : (
           <>
+            {(() => {
+              const selectedIds = quick.filter((u) => !deselected[u.id]).map((u) => u.id);
+              const allSelected = selectedIds.length === quick.length;
+              return (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={() => setDeselected(allSelected ? Object.fromEntries(quick.map((u) => [u.id, true as const])) : {})}
+                    style={{ cursor: "pointer" }}
+                  />
+                  <span style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
+                    {allSelected
+                      ? (lang === "ar" ? "الكل محدد — أزل التحديد عما تريد استثناءه" : "All selected — untick any to exclude")
+                      : (lang === "ar" ? `محدد ${selectedIds.length} من ${quick.length}` : `${selectedIds.length} of ${quick.length} selected`)}
+                  </span>
+                </div>
+              );
+            })()}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {quick.map((u) => {
                 const ev = lastOf(u).eval;
                 const q = assignment.questions.find((qq) => qq.id === u.questionId);
                 return (
-                  <div key={u.id} style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <div key={u.id} style={{ background: tokens.inset, border: `1px solid ${deselected[u.id] ? tokens.cardBorder : tokens.primary}55`, outline: deselected[u.id] ? "none" : `1px solid ${tokens.primary}33`, borderRadius: 10, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexDirection: isRtl ? "row-reverse" : "row", opacity: deselected[u.id] ? 0.55 : 1 }}>
+                    <input
+                      type="checkbox"
+                      checked={!deselected[u.id]}
+                      onChange={() => setDeselected((d) => { const n = { ...d }; if (n[u.id]) delete n[u.id]; else n[u.id] = true; return n; })}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ cursor: "pointer", flexShrink: 0 }}
+                      title={lang === "ar" ? "ضمّ للاعتماد الجماعي" : "Include in bulk approve"}
+                    />
                     <button onClick={() => openModal(u.id)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: isRtl ? "right" : "left", minWidth: 0, flex: 1 }}>
                       <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>
                         {u.studentName} · {lang === "ar" ? topicOf(u.id)?.label.ar : topicOf(u.id)?.label.en}
@@ -238,13 +268,23 @@ export default function AssignmentReviewScreen({ state, setState }: { state: App
                 );
               })}
             </div>
-            <ConfirmBtn
-              tokens={tokens} lang={lang} variant="solid"
-              label={<><IconCheck size={13} color="#fff" /> {lang === "ar" ? `اعتماد الكل (${quick.length})` : `Bulk approve all ${quick.length}`}</>}
-              confirmLabel={lang === "ar" ? `اضغط للتأكيد — اعتماد ${quick.length}` : `Click again to confirm — approve ${quick.length}`}
-              onConfirm={() => { bulkApprove(quick.map((u) => u.id)); toast(lang === "ar" ? `اعتُمدت ${quick.length} تسليمات بدرجات الذكاء الاصطناعي.` : `Approved ${quick.length} submissions at their AI scores.`); }}
-              style={{ width: "100%", padding: "11px 0", fontSize: 13, marginTop: 14 }}
-            />
+            {(() => {
+              const selectedIds = quick.filter((u) => !deselected[u.id]).map((u) => u.id);
+              return (
+                <ConfirmBtn
+                  tokens={tokens} lang={lang} variant="solid"
+                  disabled={selectedIds.length === 0}
+                  label={<><IconCheck size={13} color="#fff" /> {lang === "ar" ? `اعتماد المحدد (${selectedIds.length})` : `Bulk approve selected ${selectedIds.length}`}</>}
+                  confirmLabel={lang === "ar" ? `اضغط للتأكيد — اعتماد ${selectedIds.length}` : `Click again to confirm — approve ${selectedIds.length}`}
+                  onConfirm={() => {
+                    bulkApprove(selectedIds);
+                    setDeselected({});
+                    toast(lang === "ar" ? `اعتُمدت ${selectedIds.length} تسليمات بدرجات الذكاء الاصطناعي.` : `Approved ${selectedIds.length} submissions at their AI scores.`);
+                  }}
+                  style={{ width: "100%", padding: "11px 0", fontSize: 13, marginTop: 14 }}
+                />
+              );
+            })()}
           </>
         )}
       </Card>

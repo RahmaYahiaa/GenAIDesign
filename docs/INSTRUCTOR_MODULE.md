@@ -79,3 +79,10 @@ Smoke test (SSR render of every screen/state): `node scripts/smoke.mjs`.
 | Intervene fix | Was a toast only. Now opens `StudentInterventionModal`: snapshot tiles, primary gaps with mastery %, shortcut to generate remedial content for the top gap (→ `RemedialModal`, still draft-then-publish), "Open student file" navigation, and an outreach note that queues visibly. Used from both Analytics and the Students screen. |
 
 Governance decision: enrolment/cohort changes each academic year are an **admin/registrar** responsibility; the instructor module exposes only a read-only cohort filter (surfaced as a note in the Students header).
+
+## Round: Auditor persona + selective bulk approve
+
+| Addition | Notes |
+| --- | --- |
+| Auditor role (4th login pill) | Read-only oversight persona (Dr. Hala Zaydan — Quality Assurance). Login: Student / Instructor / Admin / **Auditor** (2×2 grid); auditor signs into `AuditorHomeScreen` — course selector, oversight tiles (decisions, AI-ratified %, edits, rejects, resubmits) and the full embedded audit trail with its filters + decision-mix insight. A permanent read-only strip states the contract: no approve/edit/reject/publish/visibility powers anywhere; the audit trail is never shown to students. AppShell gains an `auditor` role (own nav, "AUDITOR" chip, QA identity in the top bar). |
+| Selective bulk approve | Quick-approval rows now carry checkboxes. Absent = selected, so the default flow stays "approve all high-confidence items" with one confirmation; untick to exclude. Select-all/clear header row, dimmed excluded rows, and the CTA counts the selection (`Bulk approve selected N`, disabled at 0). Still one confirmation, still reopenable via the audit trail. |

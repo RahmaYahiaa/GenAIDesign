@@ -38,6 +38,8 @@ const cases = [
   ["Students roster(dark/ar)", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: true, lang: "ar", courseId: "CS301" }],
   ["Student file", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: false, lang: "en", courseId: "CS301", studentId: "st-moh" }],
   ["Student file(dark/ar)", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: true, lang: "ar", courseId: "CS401", studentId: "st-lina" }],
+  ["AuditorHome", "/src/screens/instructor/AuditorHomeScreen.tsx", { screen: "auditor-home", dark: false, lang: "en", courseId: "CS301" }],
+  ["AuditorHome(dark/ar)", "/src/screens/instructor/AuditorHomeScreen.tsx", { screen: "auditor-home", dark: true, lang: "ar", courseId: "CS401" }],
 ];
 
 let failed = 0;

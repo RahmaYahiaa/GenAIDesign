@@ -40,10 +40,30 @@ check("File AI vs final cols", file.includes("AI SCORE") && file.includes("FINAL
 
 // analytics first-paint is the precomputed-snapshot skeleton (420ms) — assert wiring at source level
 const fs = await import("node:fs");
+const fs0 = fs;
 const anSrc = fs.readFileSync("src/screens/instructor/CourseAnalyticsTab.tsx", "utf8");
 check("Analytics Export opens modal (no silent download)", anSrc.includes("setExportText(lines)") && anSrc.includes("setExportOpen(true)") && !/a\.click\(\);\n\s*URL\.revokeObjectURL\(url\);\n\s*toast/.test(anSrc));
 check("Analytics export modal has copy + download", anSrc.includes("copyExport") && anSrc.includes("downloadExport") && anSrc.includes("navigator.clipboard.writeText"));
 check("Analytics Intervene opens intervention modal", anSrc.includes("setInterveneFor(s.id)") && anSrc.includes("<StudentInterventionModal"));
+
+// ── auditor persona ──
+const aud = await render("/src/screens/instructor/AuditorHomeScreen.tsx", { screen: "auditor-home", dark: false, lang: "en", courseId: "CS301" });
+check("Auditor read-only strip", aud.includes("Read-only role") && aud.includes("cannot approve"));
+check("Auditor oversight tiles", aud.includes("AI RATIFIED") && aud.includes("DECISIONS"));
+check("Auditor embeds audit trail", aud.includes("Audit Trail"));
+check("Auditor has no grading actions", !aud.includes("Bulk approve") && !aud.includes("Click again to confirm") && !aud.includes("Generate remedial"));
+const loginSrc = fs0.readFileSync("src/screens/LoginScreen.tsx", "utf8");
+check("Login offers auditor pill", loginSrc.includes('"auditor"') && loginSrc.includes("مدقق"));
+check("Login routes auditor home", loginSrc.includes('role === "auditor" ? "auditor-home"'));
+const shellSrc = fs0.readFileSync("src/components/AppShell.tsx", "utf8");
+check("Shell auditor nav + chip", shellSrc.includes("AUDITOR_NAV") && shellSrc.includes("AUDITOR"));
+
+// ── selective bulk approve ──
+const rev = await render("/src/screens/instructor/AssignmentReviewScreen.tsx", { screen: "assignment-review", dark: false, lang: "en", courseId: "CS301", assignmentId: "as-hash" });
+check("Review select-all control", rev.includes("All selected") || rev.includes("selected"));
+check("Review approve-selected CTA", rev.includes("Bulk approve selected"));
+const revSrc = fs0.readFileSync("src/screens/instructor/AssignmentReviewScreen.tsx", "utf8");
+check("Review checkbox toggles deselection", revSrc.includes("setDeselected") && revSrc.includes('type="checkbox"'));
 
 await server.close();
 process.exit(fail ? 1 : 0);
