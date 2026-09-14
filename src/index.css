@@ -173,3 +173,16 @@ textarea:focus-visible {
   outline: 2px solid var(--genai-focus, #1B4DA8);
   outline-offset: 2px;
 }
+
+@keyframes genai-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+/* ── mobile pass (spec 8): the two day-to-day screens must stack cleanly ── */
+@media (max-width: 760px) {
+  .genai-grid-builder, .genai-grid-2 { grid-template-columns: 1fr !important; }
+  .genai-pad { padding: 16px !important; }
+  .genai-modal-card { max-width: 100% !important; padding: 18px 16px !important; }
+  .genai-tiles-5 { grid-template-columns: repeat(2, 1fr) !important; }
+}

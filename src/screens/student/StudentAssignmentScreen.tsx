@@ -3,7 +3,7 @@ import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
 import {
-  Card, Chip, ScoreValue, AlertStrip, BackCircle, ConfirmBtn,
+  Card, Chip, ScoreValue, AlertStrip, BackCircle, ConfirmBtn, Modal,
   bFontFor, hFontFor, textareaStyle, toast,
 } from "../../components/ModuleUI";
 import { IconCheck, IconImageAttach, IconReply, IconBan, IconTrash } from "../../components/Icons";
@@ -60,6 +60,7 @@ export default function StudentAssignmentScreen({ state, setState }: { state: Ap
 
   const [answers, setAnswers] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [zoom, setZoom] = useState<string | null>(null);
   useEffect(() => { setAnswers(initial); }, [initial]);
 
   // Continuous auto-save (FR-SUB-02) — debounced, never submits.
@@ -120,7 +121,7 @@ export default function StudentAssignmentScreen({ state, setState }: { state: Ap
   const lastSaved = assignment.questions.map((q) => mod.drafts[`${assignment.id}|${q.id}`]?.savedAt).filter(Boolean).sort().pop();
 
   return (
-    <div style={{ padding: "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 880, margin: "0 auto" }}>
+    <div className="genai-pad" style={{ padding: "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 880, margin: "0 auto" }}>
       {/* Header — d9 */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 18, flexDirection: isRtl ? "row-reverse" : "row" }}>
         <BackCircle tokens={tokens} rtl={isRtl} onClick={() => setState({ ...state, screen: "student-assignments", assignmentId: undefined })} />
@@ -224,7 +225,7 @@ export default function StudentAssignmentScreen({ state, setState }: { state: Ap
                   <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
                     {last?.text || a.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
                   </div>
-                  {(last?.image || a.image) && <img src={last?.image ?? a.image} alt="attachment" style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}` }} />}
+                  {(last?.image || a.image) && <img src={last?.image ?? a.image} alt="attachment" onClick={() => setZoom(last?.image ?? a.image!)} title={lang === "ar" ? "اضغط للتكبير" : "Click to zoom"} style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}`, cursor: "zoom-in" }} />}
                   {u?.status === "final" && u && assignment.showScoreToStudent && last?.decision && (
                     <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                       <ScoreValue kind="final" score={last.decision.finalScore} max={q.maxScore} tokens={tokens} lang={lang} />
@@ -239,6 +240,12 @@ export default function StudentAssignmentScreen({ state, setState }: { state: Ap
           );
         })}
       </div>
+
+      {/* zoomable attachment (spec 4.8) */}
+      <Modal open={zoom !== null} onClose={() => setZoom(null)} tokens={tokens} lang={lang} width={860}
+        title={lang === "ar" ? "المرفق — عرض مكبّر" : "Attachment — zoomed view"}>
+        {zoom && <img src={zoom} alt="attachment zoom" style={{ width: "100%", borderRadius: 10, border: `1px solid ${tokens.cardBorder}` }} />}
+      </Modal>
 
       {/* Single submit action (FR-SUB-03) */}
       {anyEditable && !closedBlocked && (

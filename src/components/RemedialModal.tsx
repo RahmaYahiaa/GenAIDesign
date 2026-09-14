@@ -3,7 +3,7 @@ import { Tokens, MONO } from "../tokens";
 import type { Lang, RemedialDraft } from "../data/instructorModule";
 import { COURSES, STUDENTS, misconceptionText, INSTRUCTOR_COURSE_IDS } from "../data/instructorModule";
 import { useInstructorModule } from "../store/InstructorStore";
-import { Modal, Btn, inputStyle, textareaStyle, bFontFor, hFontFor, toast } from "./ModuleUI";
+import { Modal, Btn, Chip, ConfirmBtn, inputStyle, textareaStyle, bFontFor, hFontFor, toast } from "./ModuleUI";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generate remedial content — centered modal (reference d10/d11), two entry
@@ -216,7 +216,12 @@ export default function RemedialModal({ open, onClose, entry, tokens, lang }: {
 
       {draft && (
         <>
-          {mono(lang === "ar" ? "مسودة قابلة للتحرير (لا تظهر للطلاب تلقائياً أبداً)" : "EDITABLE DRAFT (NEVER VISIBLE TO STUDENTS AUTOMATICALLY)")}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", margin: "14px 0 7px", flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted }}>
+              {lang === "ar" ? "مسودة قابلة للتحرير (لا تظهر للطلاب تلقائياً أبداً)" : "EDITABLE DRAFT (NEVER VISIBLE TO STUDENTS AUTOMATICALLY)"}
+            </div>
+            <Chip tokens={tokens} tone="peri">{lang === "ar" ? "مسودة" : "Draft"}</Chip>
+          </div>
           <textarea
             value={draft.body}
             onChange={(e) => patchDraft({ body: e.target.value })}
@@ -258,9 +263,11 @@ export default function RemedialModal({ open, onClose, entry, tokens, lang }: {
         <Btn tokens={tokens} lang={lang} variant="ghost" onClick={discard}>
           {lang === "ar" ? "تجاهل" : "Discard"}
         </Btn>
-        <Btn tokens={tokens} lang={lang} disabled={!draft || !draft.body.trim() || audienceCount === 0} onClick={publish}>
-          {lang === "ar" ? `نشر إلى ${audienceCount}` : `Publish to ${audienceCount}`}
-        </Btn>
+        <ConfirmBtn tokens={tokens} lang={lang} variant="solid"
+          disabled={!draft || !draft.body.trim() || audienceCount === 0}
+          label={lang === "ar" ? `نشر إلى ${audienceCount}` : `Publish to ${audienceCount}`}
+          confirmLabel={lang === "ar" ? `اضغط للتأكيد — نشر إلى ${audienceCount}` : `Click again to confirm — publish to ${audienceCount}`}
+          onConfirm={publish} />
       </div>
     </Modal>
   );

@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type Confidence = "high" | "medium" | "low" | "insufficient_evidence";
-export type AssignmentStatus = "open" | "closed";
+export type AssignmentStatus = "draft" | "open" | "closed";
 export type Lang = "en" | "ar";
 export interface L { en: string; ar: string }
 
@@ -73,12 +73,20 @@ export interface AssignmentDef {
 }
 
 // ── Evaluation / decision ────────────────────────────────────────────────────
+export interface CriterionScore {
+  label: string;
+  earned: number;
+  max: number;
+}
+
 export interface AnswerEval {
   aiScore: number | null;        // null when insufficient_evidence (FR-EVAL-04)
   confidence: Confidence;
   feedback: string;
   misconceptions: string[];      // misconception ids
   sources: string[];             // course-material references
+  /** Per-criterion breakdown — present only when the question carries a rubric. */
+  criteria?: CriterionScore[];
 }
 
 export interface AnswerDecision {
@@ -562,6 +570,7 @@ export function evaluateAnswer(question: QuestionDef, answerText: string, course
   if (!topic || approvedMaterials(topic) === 0) {
     return {
       aiScore: null,
+      criteria: [],
       confidence: "insufficient_evidence",
       feedback: `No approved course material exists for ${topic ? topic.label.en : question.topicId}, so this evaluation cannot be grounded. Mandatory manual review — no suggested score is issued.`,
       misconceptions: [],
@@ -573,7 +582,7 @@ export function evaluateAnswer(question: QuestionDef, answerText: string, course
   const misconceptions = MISCONCEPTIONS.filter((m) => m.topicId === question.topicId && m.markers.some((k) => words.includes(k))).map((m) => m.id);
 
   if (text.length === 0) {
-    return { aiScore: 0, confidence: "low", feedback: "Empty answer — nothing to evaluate.", misconceptions, sources: [] };
+    return { aiScore: 0, confidence: "low", feedback: "Empty answer — nothing to evaluate.", misconceptions, sources: [], criteria: [] };
   }
 
   const matched = question.keyTerms.filter((k) => words.includes(k));
@@ -589,6 +598,30 @@ export function evaluateAnswer(question: QuestionDef, answerText: string, course
   if (hasRef && hasRubric) confidence = coverage >= 0.5 ? "high" : "medium";
   else if (hasRubric) confidence = coverage >= 0.75 ? "high" : coverage >= 0.4 ? "medium" : "low";
   else confidence = text.length > 240 ? "medium" : "low";
+
+  // Rubric breakdown (spec 4.4): free-text rubric lines become criteria; the
+  // suggested score is distributed across them by keyword overlap, so the
+  // parts always sum to the headline score. No rubric → no breakdown.
+  const rubricLines = (question.rubric ?? "")
+    .split(/\n|•|;-/).map((l) => l.replace(/^[-*\d.)\s]+/, "").trim()).filter((l) => l.length > 3).slice(0, 5);
+  let criteria: CriterionScore[] = [];
+  if (rubricLines.length) {
+    const perMax = Math.max(1, Math.round(question.maxScore / rubricLines.length));
+    const weights = rubricLines.map((line) => {
+      const kw = line.toLowerCase().match(/[a-z][a-z-]{3,}/g) ?? [];
+      const hit = kw.filter((w) => words.includes(w)).length;
+      return 0.25 + (kw.length ? hit / kw.length : 0.5);
+    });
+    const wSum = weights.reduce((a, b) => a + b, 0);
+    let assigned = 0;
+    criteria = rubricLines.map((line, i) => {
+      const share = weights[i] / wSum;
+      let earned = i === rubricLines.length - 1 ? aiScore - assigned : Math.round(aiScore * share);
+      earned = Math.max(0, Math.min(perMax, earned));
+      assigned += earned;
+      return { label: line, earned, max: perMax };
+    });
+  }
 
   const missing = question.keyTerms.filter((k) => !words.includes(k));
   const parts: string[] = [];
@@ -608,6 +641,7 @@ export function evaluateAnswer(question: QuestionDef, answerText: string, course
     feedback: parts.join(" "),
     misconceptions,
     sources: topic.materials.filter((m) => m.status === "approved").slice(0, 2).map((m) => `${course.id} · ${m.title}`),
+    criteria,
   };
 }
 

@@ -170,12 +170,13 @@ export function VisibilityControl({ on, onChange, tokens, lang, compact }: { on:
 }
 
 // ── Assignment status ────────────────────────────────────────────────────────
-export function StatusPill({ status, tokens, lang }: { status: "open" | "closed"; tokens: Tokens; lang: Lang }) {
-  const open = status === "open";
+export function StatusPill({ status, tokens, lang }: { status: "draft" | "open" | "closed"; tokens: Tokens; lang: Lang }) {
+  const tone = status === "open" ? "primary" : status === "draft" ? "peri" : "slate";
+  const label = status === "open" ? (lang === "ar" ? "مفتوح" : "OPEN") : status === "draft" ? (lang === "ar" ? "مسودة" : "DRAFT") : (lang === "ar" ? "مغلق" : "CLOSED");
   return (
-    <Chip tokens={tokens} tone={open ? "primary" : "slate"}>
-      <span style={{ width: 5, height: 5, borderRadius: "50%", background: open ? tokens.primary : tokens.noEvidence }} />
-      {open ? (lang === "ar" ? "مفتوح" : "OPEN") : (lang === "ar" ? "مغلق" : "CLOSED")}
+    <Chip tokens={tokens} tone={tone}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: status === "open" ? tokens.primary : status === "draft" ? tokens.developing : tokens.noEvidence }} />
+      {label}
     </Chip>
   );
 }
@@ -238,7 +239,7 @@ export function Modal({ open, onClose, title, subtitle, children, tokens, lang, 
       style={{ position: "fixed", inset: 0, background: "rgba(10,14,35,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, backdropFilter: "blur(3px)" }}
     >
       <div
-        className="rise-in"
+        className="rise-in genai-modal-card"
         onClick={(e) => e.stopPropagation()}
         style={{ width: "100%", maxWidth: width, maxHeight: "88vh", overflowY: "auto", background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 14, padding: "22px 24px", boxShadow: "0 24px 60px rgba(10,14,35,0.35)" }}
       >
@@ -472,5 +473,86 @@ export function ConfirmBtn({ label, confirmLabel, onConfirm, tokens, lang, varia
     >
       {armed ? confirmLabel : label}
     </Btn>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Correctness level badge (spec 5) — correct / partial / incorrect, drawn on
+// the existing blue→violet ladder (no traffic-light colours in this system).
+// ─────────────────────────────────────────────────────────────────────────────
+export function CorrectnessBadge({ score, max, tokens, lang }: {
+  score: number | null; max: number; tokens: Tokens; lang: Lang;
+}) {
+  const ratio = score === null ? 0 : score / Math.max(1, max);
+  const level = score === null ? "none" : ratio >= 0.8 ? "correct" : ratio >= 0.5 ? "partial" : "incorrect";
+  const map = {
+    correct: { fg: tokens.mastered, bg: tokens.masteredBg, en: "Correct", ar: "صحيح" },
+    partial: { fg: tokens.developing, bg: tokens.developingBg, en: "Partial", ar: "جزئي" },
+    incorrect: { fg: tokens.gap, bg: tokens.gapBg, en: "Incorrect", ar: "غير صحيح" },
+    none: { fg: tokens.noEvidence, bg: tokens.noEvidenceBg, en: "Unscored", ar: "بدون درجة" },
+  } as const;
+  const m = map[level];
+  return (
+    <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 700, letterSpacing: "0.06em", color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px", textTransform: "uppercase" }}>
+      {lang === "ar" ? m.ar : m.en}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI Grading Result Card (spec 4.4 / 5) — the ONE component that renders an
+// evaluation everywhere: builder preview and individual submission review.
+// Same shape in both places because it is genuinely the same mechanism.
+// ─────────────────────────────────────────────────────────────────────────────
+export function AIGradingResultCard({ eval: ev, max, tokens, lang, title }: {
+  eval: { aiScore: number | null; confidence: string; feedback: string; misconceptions: string[]; sources: string[]; criteria?: { label: string; earned: number; max: number }[] };
+  max: number; tokens: Tokens; lang: Lang; title?: string;
+}) {
+  const bFont = bFontFor(lang);
+  const isRtl = lang === "ar";
+  return (
+    <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", textAlign: isRtl ? "right" : "left" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 9, flexDirection: isRtl ? "row-reverse" : "row" }}>
+        {title && <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", color: tokens.textMuted }}>{title}</span>}
+        <ScoreValue kind="ai" score={ev.aiScore} max={max} tokens={tokens} lang={lang} />
+        <CorrectnessBadge score={ev.aiScore} max={max} tokens={tokens} lang={lang} />
+        <ConfidencePill confidence={ev.confidence as never} tokens={tokens} lang={lang} />
+      </div>
+      <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65, margin: "0 0 10px" }}>{ev.feedback}</p>
+      {ev.criteria && ev.criteria.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 10 }}>
+          {ev.criteria.map((c, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textSecondary, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}</div>
+                <div style={{ height: 4, background: tokens.card, borderRadius: 3, overflow: "hidden", border: `1px solid ${tokens.cardBorder}` }}>
+                  <div style={{ width: `${Math.round((c.earned / Math.max(1, c.max)) * 100)}%`, height: "100%", background: c.earned === c.max ? tokens.mastered : c.earned > 0 ? tokens.developing : tokens.noEvidence }} />
+                </div>
+              </div>
+              <span style={{ fontFamily: MONO, fontSize: 10.5, fontWeight: 700, color: tokens.textSecondary, flexShrink: 0 }}>{c.earned}/{c.max}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {ev.misconceptions.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          {ev.misconceptions.map((id) => (
+            <Chip key={id} tokens={tokens} tone="violet">{id.replace("mc-", "").replace(/-/g, " ")}</Chip>
+          ))}
+        </div>
+      )}
+      {ev.sources.length > 0 && (
+        <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
+          {isRtl ? "المصادر: " : "sources: "}{ev.sources.join(" · ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Loading skeleton block (spec 6 — loading states).
+export function Skeleton({ h = 14, w = "100%", tokens, style }: { h?: number; w?: number | string; tokens: Tokens; style?: React.CSSProperties }) {
+  return (
+    <div style={{ height: h, width: w, borderRadius: 6, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, animation: "genai-pulse 1.1s ease-in-out infinite", ...style }} />
   );
 }

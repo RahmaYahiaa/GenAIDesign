@@ -3,7 +3,7 @@ import { tk } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
 import { Card, Btn, Chip, bFontFor, hFontFor, toast } from "../../components/ModuleUI";
 import { EmptyState } from "../../components/SharedUI";
-import { IconPlus, IconClipboard } from "../../components/Icons";
+import { IconPlus, IconClipboard, IconPencil } from "../../components/Icons";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Assignments tab — reference d3: a stacked list of assignment cards (not a
@@ -72,9 +72,17 @@ export default function AssignmentsTab({ state, setState, courseId }: { state: A
                       <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
                         {lang === "ar" ? a.title.ar : a.title.en}
                       </span>
-                      <Chip tokens={tokens} tone={open ? "primary" : "slate"}>
-                        {open ? (lang === "ar" ? "مفتوح" : "Open") : (lang === "ar" ? "مغلق" : "Closed")}
+                      <Chip tokens={tokens} tone={a.status === "open" ? "primary" : a.status === "draft" ? "peri" : "slate"}>
+                        {a.status === "open" ? (lang === "ar" ? "مفتوح" : "Open") : a.status === "draft" ? (lang === "ar" ? "مسودة" : "Draft") : (lang === "ar" ? "مغلق" : "Closed")}
                       </Chip>
+                      <button
+                        onClick={() => setState({ ...state, screen: "assignment-create", courseId, assignmentId: a.id })}
+                        title={lang === "ar" ? "تعديل التكليف" : "Edit assignment"}
+                        aria-label={lang === "ar" ? "تعديل التكليف" : "Edit assignment"}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 3, borderRadius: 6, display: "inline-flex" }}
+                      >
+                        <IconPencil size={13} color={tokens.textFaint} />
+                      </button>
                     </div>
                     <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                       <span>{received} {lang === "ar" ? "تسلّم" : "received"}</span>
@@ -89,6 +97,12 @@ export default function AssignmentsTab({ state, setState, courseId }: { state: A
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8, flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    {a.status === "draft" && (
+                      <Btn tokens={tokens} lang={lang} style={{ padding: "8px 16px", fontSize: 12.5 }}
+                        onClick={() => { setAssignmentStatus(a.id, "open"); toast(lang === "ar" ? `نُشر «${a.title.en}» — الحالة: مفتوح.` : `Published "${a.title.en}" — status Open.`); }}>
+                        {lang === "ar" ? "نشر" : "Publish"}
+                      </Btn>
+                    )}
                     {open && (
                       <Btn
                         tokens={tokens}

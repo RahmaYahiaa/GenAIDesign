@@ -1,7 +1,8 @@
+import { useMemo, useState } from "react";
 import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { Card, Chip, Th, bFontFor, hFontFor } from "../../components/ModuleUI";
+import { Card, Chip, Th, bFontFor, hFontFor, inputStyle } from "../../components/ModuleUI";
 import { fmtWhen } from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,9 +19,32 @@ export default function AuditTrailTab({ state, courseId }: { state: AppState; co
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
 
-  const rows = mod.audit
-    .filter((e) => e.courseId === courseId)
+  // spec 4.13 — filters: assignment, decision type, date range
+  const [fAssignment, setFAssignment] = useState("all");
+  const [fAction, setFAction] = useState("all");
+  const [fRange, setFRange] = useState("all");
+
+  const courseEntries = useMemo(() => mod.audit.filter((e) => e.courseId === courseId), [mod.audit, courseId]);
+
+  const rows = courseEntries
+    .filter((e) => fAssignment === "all" || e.assignmentId === fAssignment)
+    .filter((e) => fAction === "all" || e.action === fAction)
+    .filter((e) => {
+      if (fRange === "all") return true;
+      const days = fRange === "7" ? 7 : fRange === "30" ? 30 : 120;
+      return Date.now() - new Date(e.at).getTime() < days * 86400_000;
+    })
     .sort((a, b) => b.at.localeCompare(a.at));
+
+  // optional insight (spec 4.13): decision mix as visible evidence of AI accuracy
+  const mix = useMemo(() => {
+    const m: Record<string, number> = { approve: 0, edit: 0, reject: 0, resubmit: 0 };
+    courseEntries.forEach((e) => { m[e.action] = (m[e.action] ?? 0) + 1; });
+    return m;
+  }, [courseEntries]);
+  const ratified = mix.approve;
+  const changed = mix.edit + mix.reject + mix.resubmit;
+  const total = Math.max(1, ratified + changed);
 
   const actionChip = (action: string) => {
     const map: Record<string, { tone: "primary" | "violet" | "slate"; en: string; ar: string }> = {
@@ -46,6 +70,47 @@ export default function AuditTrailTab({ state, courseId }: { state: AppState; co
             ? "كل قرار غيّر أو أقرّ تقييم الذكاء الاصطناعي. للمدرّسين فقط."
             : "Every decision that changed or ratified an AI evaluation. Instructors only."}
         </p>
+      </div>
+
+      {/* decision-mix insight */}
+      <Card tokens={tokens} style={{ padding: "14px 18px", marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
+            {lang === "ar"
+              ? `دليل دقة الذكاء الاصطناعي: ${ratified} قراراً أُقرّ كما هو مقابل ${changed} غيّرته يد المدرّس.`
+              : `AI accuracy evidence: ${ratified} decision${ratified === 1 ? "" : "s"} ratified as-is vs ${changed} changed by the instructor.`}
+          </div>
+          <div style={{ display: "flex", gap: 3, height: 10, width: 180, borderRadius: 5, overflow: "hidden", border: `1px solid ${tokens.cardBorder}`, flexShrink: 0 }}>
+            <div style={{ width: `${(ratified / total) * 100}%`, background: tokens.mastered }} title={`approve ${ratified}`} />
+            <div style={{ width: `${(mix.edit / total) * 100}%`, background: tokens.developing }} title={`edit ${mix.edit}`} />
+            <div style={{ width: `${(mix.resubmit / total) * 100}%`, background: tokens.gap }} title={`resubmit ${mix.resubmit}`} />
+            <div style={{ width: `${(mix.reject / total) * 100}%`, background: tokens.noEvidence }} title={`reject ${mix.reject}`} />
+          </div>
+        </div>
+      </Card>
+
+      {/* filters */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <select value={fAssignment} onChange={(e) => setFAssignment(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: 230 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل التكليفات" : "All assignments"}</option>
+          {[...new Set(courseEntries.map((e) => e.assignmentId))].map((id) => (
+            <option key={id} value={id}>{courseEntries.find((e) => e.assignmentId === id)?.assignmentTitle}</option>
+          ))}
+        </select>
+        <select value={fAction} onChange={(e) => setFAction(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: 190 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل أنواع القرارات" : "All decision types"}</option>
+          <option value="approve">{lang === "ar" ? "اعتماد" : "Approve"}</option>
+          <option value="edit">{lang === "ar" ? "تعديل" : "Edit"}</option>
+          <option value="reject">{lang === "ar" ? "رفض" : "Reject"}</option>
+          <option value="resubmit">{lang === "ar" ? "طلب إعادة التسليم" : "Request resubmission"}</option>
+          <option value="visibility">{lang === "ar" ? "إظهار الدرجة" : "Score visibility"}</option>
+        </select>
+        <select value={fRange} onChange={(e) => setFRange(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: 170 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل الفترات" : "Any date"}</option>
+          <option value="7">{lang === "ar" ? "آخر 7 أيام" : "Last 7 days"}</option>
+          <option value="30">{lang === "ar" ? "آخر 30 يوماً" : "Last 30 days"}</option>
+          <option value="120">{lang === "ar" ? "هذا الفصل" : "This semester"}</option>
+        </select>
       </div>
 
       <Card tokens={tokens} style={{ padding: "6px 20px" }}>

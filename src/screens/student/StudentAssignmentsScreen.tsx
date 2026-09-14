@@ -37,7 +37,7 @@ export default function StudentAssignmentsScreen({ state, setState }: { state: A
   };
 
   return (
-    <div style={{ padding: "28px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto" }}>
+    <div className="genai-pad" style={{ padding: "28px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto" }}>
       <div style={{ marginBottom: 20, textAlign: isRtl ? "right" : "left" }}>
         <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px" }}>
           {lang === "ar" ? "التكليفات" : "Assignments"}
@@ -65,7 +65,7 @@ export default function StudentAssignmentsScreen({ state, setState }: { state: A
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
           {courses.map((course) => {
-            const assignments = mod.assignments.filter((a) => a.courseId === course.id);
+            const assignments = mod.assignments.filter((a) => a.courseId === course.id && a.status !== "draft");   // drafts are invisible to students
             if (assignments.length === 0) return null;
             return (
               <div key={course.id}>

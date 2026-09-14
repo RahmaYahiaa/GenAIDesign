@@ -57,7 +57,25 @@ export default function InstructorHomeScreen({ state, setState }: { state: AppSt
       </div>
 
       {/* Attention banner — directs only, never approves (FR-HOME-02/03) */}
-      {mostUrgent && (
+      {totalPending === 0 && (
+        <div
+          style={{
+            background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12,
+            padding: "34px 24px", marginBottom: 20, textAlign: "center",
+          }}
+        >
+          <div style={{ display: "inline-flex", width: 44, height: 44, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <IconClipboard size={18} color={tokens.primary} />
+          </div>
+          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 16, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 4 }}>
+            {lang === "ar" ? "لا تسليمات تحتاج مراجعة الآن" : "No submissions need review right now"}
+          </div>
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>
+            {lang === "ar" ? "كل شيء معالَج — ستظهر التسليمات الجديدة هنا فور وصولها." : "Everything is handled — new submissions will surface here as they arrive."}
+          </div>
+        </div>
+      )}
+      {totalPending > 0 && mostUrgent && (
         <div
           style={{
             background: tokens.primaryLight,

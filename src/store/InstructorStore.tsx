@@ -40,7 +40,8 @@ function initialState(): ModuleState {
 interface Ctx {
   state: ModuleState;
   // assignments
-  publishAssignment: (courseId: string, draft: { titleEn: string; titleAr: string; showScore: boolean; questions: QuestionDef[] }) => string;
+  publishAssignment: (courseId: string, draft: { titleEn: string; titleAr: string; showScore: boolean; questions: QuestionDef[] }, status?: "open" | "draft") => string;
+  updateAssignment: (id: string, patch: { titleEn: string; showScore: boolean; status: "draft" | "open" | "closed"; questions: QuestionDef[] }) => void;
   setAssignmentStatus: (assignmentId: string, status: "open" | "closed") => void;
   setScoreVisibility: (assignmentId: string, next: boolean) => void;
   // review
@@ -90,13 +91,13 @@ export function InstructorModuleProvider({ children }: { children: ReactNode }) 
   };
 
   // ── assignments ────────────────────────────────────────────────────────────
-  const publishAssignment: Ctx["publishAssignment"] = (courseId, draft) => {
+  const publishAssignment: Ctx["publishAssignment"] = (courseId, draft, status = "open") => {
     const id = nextId("as");
     mutate((s) => {
       s.assignments.unshift({
         id, courseId,
         title: { en: draft.titleEn, ar: draft.titleAr || draft.titleEn },
-        status: "open",                       // FR-AC-05 — publish ⇒ Open
+        status,                               // FR-AC-05 — publish ⇒ Open unless saved as draft
         showScoreToStudent: draft.showScore,  // FR-VIS-05 default handled by caller (false)
         createdAt: nowIso(),
         questions: draft.questions,
@@ -106,6 +107,18 @@ export function InstructorModuleProvider({ children }: { children: ReactNode }) 
     });
     return id;
   };
+
+  const updateAssignment: Ctx["updateAssignment"] = (id, patch) =>
+    mutate((s) => {
+      const a = s.assignments.find((x) => x.id === id);
+      if (!a) return s;
+      a.title = { en: patch.titleEn, ar: patch.titleEn };
+      a.showScoreToStudent = patch.showScore;
+      a.status = patch.status;
+      a.questions = patch.questions;
+      s.analyticsAsOf = nowIso();
+      return s;
+    });
 
   const setAssignmentStatus: Ctx["setAssignmentStatus"] = (assignmentId, status) =>
     mutate((s) => {
@@ -301,7 +314,7 @@ export function InstructorModuleProvider({ children }: { children: ReactNode }) 
   const reset = useCallback(() => { seq = 1000; setState(initialState()); }, []);
 
   const value = useMemo<Ctx>(() => ({
-    state, publishAssignment, setAssignmentStatus, setScoreVisibility,
+    state, publishAssignment, updateAssignment, setAssignmentStatus, setScoreVisibility,
     decide, requestResubmission, reopenUnit, bulkApprove,
     saveDraft, submitAssignment, resubmitUnit,
     addMaterial, approveMaterial, saveRemedial, publishRemedial, discardRemedial, reset,

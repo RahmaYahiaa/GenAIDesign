@@ -10,6 +10,21 @@
 > modals, focus-visible rings. Scope rule intact: personal courses expose no
 > assignment affordance at all; the student sidebar keeps its FRD-compliant
 > "Assignments" item (reference build entered it elsewhere).
+>
+> **Spec-gap pass (full brief §4–§8):** shared `AIGradingResultCard` (score +
+> correctness + confidence + feedback + misconceptions + rubric breakdown +
+> sources) used by builder preview AND submission review; correctness badge;
+> builder gains edit mode, Save-as-draft (assignment status `draft`, hidden
+> from students), Open/Closed toggle in edit, "Improve AI grading accuracy"
+> section with never-visible note, low-confidence hint, loading skeleton for
+> the preview call; review gains filters (name/confidence/reviewed),
+> misconception share bars, attempt timeline, collapsible model answer &
+> rubric, zoomable attachments, auto-advance to next submission; remedial
+> gains Draft badge + two-step publish; audit gains filters (assignment /
+> type / date range) + decision-mix insight bar; home gains the calm
+> empty state; workspace header gains the coverage-gap badge; analytics
+> shows a brief precomputed-snapshot skeleton; mobile media queries stack
+> the builder/analytics grids and full-width modals.
 
 Build note for the module specified in `GenAI-Instructor-Module-FRD.pdf`. Everything below is
 implemented on top of the existing design system **as-is**: same `tokens.ts` cobalt ladder, same

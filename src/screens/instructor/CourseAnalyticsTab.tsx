@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AppState } from "../../components/AppShell";
 import { tk, MONO, masteryColor, masteryLevel, masteryBg } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
@@ -6,6 +6,7 @@ import {
   Card, Btn, Chip, Modal, inputStyle, bFontFor, hFontFor, toast, Th,
 } from "../../components/ModuleUI";
 import { CitationChip, MasteryBar } from "../../components/SharedUI";
+import { Skeleton } from "../../components/ModuleUI";
 import { IconWarning, IconUpload, IconCheck, IconDownload, IconSparkle } from "../../components/Icons";
 import RemedialModal, { RemedialEntry } from "../../components/RemedialModal";
 import {
@@ -29,6 +30,9 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
   const course = mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
   const [remedialEntry, setRemedialEntry] = useState<RemedialEntry | null>(null);
   const [materialsFor, setMaterialsFor] = useState<string | null>(null);
+  // spec 6 — analytics is precomputed; show a brief snapshot-loading state
+  const [loading, setLoading] = useState(true);
+  useEffect(() => { const t = window.setTimeout(() => setLoading(false), 420); return () => window.clearTimeout(t); }, []);
   const [uploadTitle, setUploadTitle] = useState("");
 
   const gaps = useMemo(
@@ -110,6 +114,22 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
     );
   };
 
+  if (loading) {
+    return (
+      <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
+        <Skeleton h={26} w={220} tokens={tokens} style={{ marginBottom: 10 }} />
+        <Skeleton h={12} w={340} tokens={tokens} style={{ marginBottom: 20 }} />
+        <div className="genai-tiles-5" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
+          {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} h={96} tokens={tokens} />)}
+        </div>
+        <div className="genai-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <Skeleton h={280} tokens={tokens} />
+          <Skeleton h={280} tokens={tokens} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
       {/* Header */}
@@ -138,7 +158,7 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
       </div>
 
       {/* Stat tiles */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
+      <div className="genai-tiles-5" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
         {[
           { label: lang === "ar" ? "الطلاب" : "STUDENTS", value: `${course.enrolled}`, sub: lang === "ar" ? "مسجلون" : "Enrolled", color: tokens.textPrimary },
           { label: lang === "ar" ? "متوسط الإتقان" : "AVG. MASTERY", value: `${course.overall}%`, sub: lang === "ar" ? "كل المواضيع" : "All topics", color: tokens.primary },
@@ -155,7 +175,7 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
       </div>
 
       {/* Gaps + misconceptions */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
+      <div className="genai-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 18 }}>
         <Card tokens={tokens} style={{ padding: "18px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
             <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
