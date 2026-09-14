@@ -145,6 +145,10 @@ export interface StudentInfo {
   id: string;
   name: string;
   studentNumber: string;
+  /** Enrolment cohort (entry year). Rosters change every academic year —
+   *  cohort membership is owned by the registrar/admin, the instructor only
+   *  filters by it. */
+  cohort: string;
   avg: number;
   trend: "improving" | "stable" | "declining";
   gaps: string[];
@@ -186,6 +190,14 @@ export interface RemedialDraft {
 const NOW = Date.now();
 export const ago = (hours: number) => new Date(NOW - hours * 3600_000).toISOString();
 const at = (iso: string) => new Date(iso).toISOString();
+
+/** Precomputed-style per-student topic mastery: gap topics sit below the
+ *  40% attention line, the rest blend the class topic mastery with the
+ *  student's own average. Deterministic — no live computation at view time. */
+export function studentTopicMastery(student: StudentInfo, topic: TopicInfo): number {
+  if (student.gaps.includes(topic.id)) return Math.max(5, Math.min(39, student.avg - 8));
+  return Math.max(40, Math.min(95, Math.round(topic.pct * 0.4 + student.avg * 0.6)));
+}
 
 export function fmtWhen(iso: string, lang: Lang): string {
   const d = new Date(iso);
@@ -280,18 +292,18 @@ export const STUDENT_INSTITUTIONAL_IDS = ["CS301", "CS401"];
 export const STUDENT_PERSONAL_IDS = ["LIN101"];
 
 export const STUDENTS: StudentInfo[] = [
-  { id: "st-moh", name: "Mohammed Al-Rashidi", studentNumber: "202341872", avg: 27, trend: "stable", gaps: ["dijkstra", "hash"], sessions: 2 },
-  { id: "st-lina", name: "Lina Hassan", studentNumber: "202338021", avg: 31, trend: "improving", gaps: ["bst", "bfs"], sessions: 4 },
-  { id: "st-tariq", name: "Tariq Al-Nasser", studentNumber: "202340155", avg: 34, trend: "declining", gaps: ["dijkstra", "dfs"], sessions: 1 },
-  { id: "st-nour", name: "Nour Al-Qahtani", studentNumber: "202341003", avg: 36, trend: "stable", gaps: ["hash", "dfs"], sessions: 3 },
-  { id: "st-faris", name: "Faris Ibrahim", studentNumber: "202342210", avg: 38, trend: "improving", gaps: ["dp"], sessions: 5 },
-  { id: "st-omar", name: "Omar Khaled", studentNumber: "202340512", avg: 62, trend: "improving", gaps: ["avl"], sessions: 6 },
-  { id: "st-youssef", name: "Youssef Nasser", studentNumber: "202341266", avg: 58, trend: "stable", gaps: ["dp"], sessions: 3 },
-  { id: "st-mariam", name: "Mariam Adel", studentNumber: "202339870", avg: 44, trend: "stable", gaps: ["bst"], sessions: 2 },
-  { id: "st-karim", name: "Karim Fathi", studentNumber: "202343118", avg: 42, trend: "declining", gaps: ["bst", "hash"], sessions: 1 },
-  { id: "st-hana", name: "Hana Saeed", studentNumber: "202337654", avg: 71, trend: "improving", gaps: [], sessions: 7 },
-  { id: "st-tarek", name: "Tarek Aziz", studentNumber: "202342901", avg: 41, trend: "stable", gaps: ["bst"], sessions: 2 },
-  { id: DEMO_STUDENT_ID, name: "Sarah Al-Rashidi", studentNumber: "202341872", avg: 57, trend: "improving", gaps: ["hash"], sessions: 23 },
+  { id: "st-moh", name: "Mohammed Al-Rashidi", studentNumber: "202341872", cohort: "2023", avg: 27, trend: "stable", gaps: ["dijkstra", "hash"], sessions: 2 },
+  { id: "st-lina", name: "Lina Hassan", studentNumber: "202338021", cohort: "2023", avg: 31, trend: "improving", gaps: ["bst", "bfs"], sessions: 4 },
+  { id: "st-tariq", name: "Tariq Al-Nasser", studentNumber: "202340155", cohort: "2023", avg: 34, trend: "declining", gaps: ["dijkstra", "dfs"], sessions: 1 },
+  { id: "st-nour", name: "Nour Al-Qahtani", studentNumber: "202341003", cohort: "2023", avg: 36, trend: "stable", gaps: ["hash", "dfs"], sessions: 3 },
+  { id: "st-faris", name: "Faris Ibrahim", studentNumber: "202342210", cohort: "2024", avg: 38, trend: "improving", gaps: ["dp"], sessions: 5 },
+  { id: "st-omar", name: "Omar Khaled", studentNumber: "202340512", cohort: "2023", avg: 62, trend: "improving", gaps: ["avl"], sessions: 6 },
+  { id: "st-youssef", name: "Youssef Nasser", studentNumber: "202341266", cohort: "2024", avg: 58, trend: "stable", gaps: ["dp"], sessions: 3 },
+  { id: "st-mariam", name: "Mariam Adel", studentNumber: "202339870", cohort: "2023", avg: 44, trend: "stable", gaps: ["bst"], sessions: 2 },
+  { id: "st-karim", name: "Karim Fathi", studentNumber: "202343118", cohort: "2024", avg: 42, trend: "declining", gaps: ["bst", "hash"], sessions: 1 },
+  { id: "st-hana", name: "Hana Saeed", studentNumber: "202337654", cohort: "2023", avg: 71, trend: "improving", gaps: [], sessions: 7 },
+  { id: "st-tarek", name: "Tarek Aziz", studentNumber: "202342901", cohort: "2022", avg: 41, trend: "stable", gaps: ["bst"], sessions: 2 },
+  { id: DEMO_STUDENT_ID, name: "Sarah Al-Rashidi", studentNumber: "202341872", cohort: "2023", avg: 57, trend: "improving", gaps: ["hash"], sessions: 23 },
 ];
 
 export const MISCONCEPTIONS: MisconceptionDef[] = [

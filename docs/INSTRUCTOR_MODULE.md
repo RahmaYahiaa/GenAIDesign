@@ -67,3 +67,15 @@ Smoke test (SSR render of every screen/state): `node scripts/smoke.mjs`.
 - **Confidence**: same pill treatment as the Tutor's grounded/insufficient bar —
   high→cobalt, medium→periwinkle, low→violet, insufficient_evidence→slate + warning glyph.
 - **Mastery**: untouched `masteryLevel/masteryColor/MasteryBar/MasteryPill` from `tokens.ts`.
+
+## Round: Content Studio, Students section, Export/Intervene fixes (post-spec-gap)
+
+| Addition | Notes |
+| --- | --- |
+| `ContentStudioScreen` (sidebar: **Content Studio**, sparkle icon) | AI-tutor-style generation for the instructor: course + topic select **or free-form topic**; 8 modalities — text explanation, worked examples, diagrams & images, video script, audio narration, practice quiz, slide deck outline, flashcards; length/tone/extra-instruction controls; deterministic draft after a brief generation state; editable before use. **Nothing is auto-published** — "Add to course materials" only works for course-mapped topics; free-form output stays a saveable draft. |
+| `StudentsScreen` (sidebar: **Students**, per course) | Roster with search (name/number) + filters: **cohort/year**, mastery band, trend, open-work state. Row → **Open file**: snapshot tiles, per-topic mastery bars (`studentTopicMastery`), submission history in this course (AI vs final score, status, date), remedial content received, Intervene button. Roster & cohort membership are **registrar/admin-owned** — the instructor view is read-only by design and says so in the header. |
+| `StudentInfo.cohort` + `studentTopicMastery()` | Seed cohorts 2022–2024; per-topic mastery derived from the student's gap list + averages (deterministic, demo-only). |
+| Export Report fix | The old flow fired a silent `a.click()` blob download — invisible inside the sandboxed preview iframe, so the button looked dead. Export now opens a modal with the full report text + explicit **Copy** and **Download .txt** buttons (clipboard/anchor failures fall back to a guidance toast). |
+| Intervene fix | Was a toast only. Now opens `StudentInterventionModal`: snapshot tiles, primary gaps with mastery %, shortcut to generate remedial content for the top gap (→ `RemedialModal`, still draft-then-publish), "Open student file" navigation, and an outreach note that queues visibly. Used from both Analytics and the Students screen. |
+
+Governance decision: enrolment/cohort changes each academic year are an **admin/registrar** responsibility; the instructor module exposes only a read-only cohort filter (surfaced as a note in the Students header).

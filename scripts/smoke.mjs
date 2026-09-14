@@ -32,6 +32,12 @@ const cases = [
   ["StudentAssignment(submitted/d9)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: false, lang: "en", courseId: "CS401", assignmentId: "as-sched" }],
   ["StudentAssignment(resubmit/dark/ar)", "/src/screens/student/StudentAssignmentScreen.tsx", { screen: "student-assignment", dark: true, lang: "ar", courseId: "CS301", assignmentId: "as-hash" }],
   ["StudentAssignments(dark/ar)", "/src/screens/student/StudentAssignmentsScreen.tsx", { screen: "student-assignments", dark: true, lang: "ar" }],
+  ["ContentStudio", "/src/screens/instructor/ContentStudioScreen.tsx", { screen: "content-studio", dark: false, lang: "en", courseId: "CS301" }],
+  ["ContentStudio(dark/ar)", "/src/screens/instructor/ContentStudioScreen.tsx", { screen: "content-studio", dark: true, lang: "ar", courseId: "CS401" }],
+  ["Students roster", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: false, lang: "en", courseId: "CS301" }],
+  ["Students roster(dark/ar)", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: true, lang: "ar", courseId: "CS301" }],
+  ["Student file", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: false, lang: "en", courseId: "CS301", studentId: "st-moh" }],
+  ["Student file(dark/ar)", "/src/screens/instructor/StudentsScreen.tsx", { screen: "students", dark: true, lang: "ar", courseId: "CS401", studentId: "st-lina" }],
 ];
 
 let failed = 0;

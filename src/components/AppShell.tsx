@@ -4,7 +4,7 @@ import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
   IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
-  IconClipboard,
+  IconClipboard, IconUsers, IconSparkle,
 } from "./Icons";
 
 export type WorkspaceTab = "assignments" | "analytics" | "audit";
@@ -14,7 +14,7 @@ type Screen =
   | "diagnostic" | "practice" | "reassessment" | "profile"
   | "student-assignments" | "student-assignment"
   | "instructor-home" | "course-workspace" | "assignment-create"
-  | "assignment-review" | "instructor";
+  | "assignment-review" | "instructor" | "content-studio" | "students";
 
 export type { Screen };
 
@@ -28,6 +28,8 @@ interface AppState {
   assignmentId?: string;
   /** Active tab of the course workspace. */
   tab?: WorkspaceTab;
+  /** Student whose file is open (instructor Students screen). */
+  studentId?: string;
   /**
    * Demo control modelling account type: when true the signed-in learner holds
    * only personal courses, so the whole assignment module must disappear
@@ -57,6 +59,8 @@ const STUDENT_NAV_BOTTOM: { id: Screen; labelEn: string; labelAr: string; Icon: 
 const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "instructor-home", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
   { id: "course-workspace", labelEn: "Workspace", labelAr: "مساحة العمل", Icon: IconClipboard },
+  { id: "students", labelEn: "Students", labelAr: "الطلاب", Icon: IconUsers },
+  { id: "content-studio", labelEn: "Content Studio", labelAr: "استوديو المحتوى", Icon: IconSparkle },
   { id: "instructor", labelEn: "Legacy Analytics", labelAr: "التحليلات القديمة", Icon: IconDashboard },
 ];
 

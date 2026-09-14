@@ -9,6 +9,7 @@ import { CitationChip, MasteryBar } from "../../components/SharedUI";
 import { Skeleton } from "../../components/ModuleUI";
 import { IconWarning, IconUpload, IconCheck, IconDownload, IconSparkle } from "../../components/Icons";
 import RemedialModal, { RemedialEntry } from "../../components/RemedialModal";
+import StudentInterventionModal from "../../components/StudentInterventionModal";
 import {
   MISCONCEPTIONS, STUDENTS, COURSE_SESSIONS, approvedMaterials, fmtWhen,
 } from "../../data/instructorModule";
@@ -19,7 +20,7 @@ import {
 // and every "Generate" entry point opens the remedial modal pre-filled.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CourseAnalyticsTab({ state, courseId }: { state: AppState; courseId: string }) {
+export default function CourseAnalyticsTab({ state, setState, courseId }: { state: AppState; setState: (s: AppState) => void; courseId: string }) {
   const { state: mod, addMaterial, approveMaterial } = useInstructorModule();
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -34,6 +35,9 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
   const [loading, setLoading] = useState(true);
   useEffect(() => { const t = window.setTimeout(() => setLoading(false), 420); return () => window.clearTimeout(t); }, []);
   const [uploadTitle, setUploadTitle] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportText, setExportText] = useState("");
+  const [interveneFor, setInterveneFor] = useState<string | null>(null);
 
   const gaps = useMemo(
     () => course.topics.filter((t) => t.pct < 65).sort((a, b) => a.pct - b.pct),
@@ -90,14 +94,34 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
       `Material coverage alerts:`,
       ...(coverage.length ? coverage.map((t) => `  - ${t.label.en}: 0 approved materials`) : ["  - none"]),
     ].join("\n");
-    const blob = new Blob([lines], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${course.id}-analytics-snapshot.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast(lang === "ar" ? "تم تصدير تقرير اللقطة التحليلية." : "Analytics snapshot report exported.");
+    setExportText(lines);
+    setExportOpen(true);
+  };
+
+  const copyExport = async () => {
+    try {
+      await navigator.clipboard.writeText(exportText);
+      toast(lang === "ar" ? "تم نسخ التقرير." : "Report copied.");
+    } catch {
+      toast(lang === "ar" ? "انسخ النص المحدد يدوياً (Ctrl+C)." : "Select the text and copy manually (Ctrl+C).");
+    }
+  };
+
+  const downloadExport = () => {
+    try {
+      const blob = new Blob([exportText], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${course.id}-analytics-snapshot.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast(lang === "ar" ? "بدء تنزيل التقرير." : "Report download started.");
+    } catch {
+      toast(lang === "ar" ? "التنزيل محجوب هنا — انسخ النص بدلاً منه." : "Download blocked here — copy the text instead.");
+    }
   };
 
   const trendPill = (t: string) => {
@@ -296,7 +320,7 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
                   <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
                   <td style={{ padding: "11px 10px", textAlign: "right" }}>
                     <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }}
-                      onClick={() => toast(lang === "ar" ? `خطة تدخل مُجدولة لـ${s.name}.` : `Intervention plan queued for ${s.name}.`)}>
+                      onClick={() => setInterveneFor(s.id)}>
                       {lang === "ar" ? "تدخل" : "Intervene"}
                     </Btn>
                   </td>
@@ -387,6 +411,29 @@ export default function CourseAnalyticsTab({ state, courseId }: { state: AppStat
           </>
         )}
       </Modal>
+
+      {/* Export report — visible content + explicit copy/download (sandboxed iframes block silent downloads) */}
+      <Modal open={exportOpen} onClose={() => setExportOpen(false)} tokens={tokens} lang={lang} width={640}
+        title={lang === "ar" ? "تقرير اللقطة التحليلية" : "Analytics snapshot report"}>
+        <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, marginBottom: 10 }}>
+          {lang === "ar"
+            ? "تقرير نصي جاهز — انسخه أو نزّله. يعكس نفس اللقطة المحسوبة مسبقاً المعروضة بالأعلى."
+            : "Plain-text report — copy it or download. Mirrors the same precomputed snapshot shown above."}
+        </p>
+        <pre style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.65, color: tokens.textSecondary, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "14px 16px", margin: 0, maxHeight: 340, overflow: "auto", whiteSpace: "pre-wrap", textAlign: "left", direction: "ltr", userSelect: "text" }}>{exportText}</pre>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14 }}>
+          <Btn tokens={tokens} lang={lang} variant="soft" onClick={copyExport}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><IconCheck size={13} />{lang === "ar" ? "نسخ التقرير" : "Copy report"}</span>
+          </Btn>
+          <Btn tokens={tokens} lang={lang} variant="solid" onClick={downloadExport}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><IconDownload size={13} />{lang === "ar" ? "تنزيل .txt" : "Download .txt"}</span>
+          </Btn>
+        </div>
+      </Modal>
+
+      <StudentInterventionModal open={interveneFor !== null} onClose={() => setInterveneFor(null)} studentId={interveneFor}
+        courseId={courseId} tokens={tokens} lang={lang}
+        onOpenFile={(id) => setState({ ...state, screen: "students", studentId: id, courseId })} />
 
       <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
     </div>

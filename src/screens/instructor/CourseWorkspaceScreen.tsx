@@ -64,7 +64,7 @@ export default function CourseWorkspaceScreen({ state, setState }: { state: AppS
 
       <div style={{ marginTop: 24 }}>
         {tab === "assignments" && <AssignmentsTab state={state} setState={setState} courseId={course.id} />}
-        {tab === "analytics" && <CourseAnalyticsTab state={state} courseId={course.id} />}
+        {tab === "analytics" && <CourseAnalyticsTab state={state} setState={setState} courseId={course.id} />}
         {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
       </div>
     </div>

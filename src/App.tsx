@@ -12,6 +12,8 @@ import CourseWorkspaceScreen from "./screens/instructor/CourseWorkspaceScreen";
 import AssignmentCreateScreen from "./screens/instructor/AssignmentCreateScreen";
 import AssignmentReviewScreen from "./screens/instructor/AssignmentReviewScreen";
 import InstructorScreen from "./screens/InstructorScreen";
+import ContentStudioScreen from "./screens/instructor/ContentStudioScreen";
+import StudentsScreen from "./screens/instructor/StudentsScreen";
 import StudentAssignmentsScreen from "./screens/student/StudentAssignmentsScreen";
 import StudentAssignmentScreen from "./screens/student/StudentAssignmentScreen";
 import { InstructorModuleProvider } from "./store/InstructorStore";
@@ -22,6 +24,7 @@ import { IconCourses, IconProfile } from "./components/Icons";
 /** Screens that render inside the instructor shell. */
 const INSTRUCTOR_SCREENS = [
   "instructor-home", "course-workspace", "assignment-create", "assignment-review", "instructor",
+  "content-studio", "students",
 ] as const;
 
 // ─── Register Screen ──────────────────────────────────────────────────────────
@@ -319,6 +322,8 @@ export default function App() {
       case "assignment-create": return <AssignmentCreateScreen state={state} setState={setState} />;
       case "assignment-review": return <AssignmentReviewScreen state={state} setState={setState} />;
       case "instructor": return <InstructorScreen state={state} setState={setState} />;
+      case "content-studio": return <ContentStudioScreen state={state} setState={setState} />;
+      case "students": return <StudentsScreen state={state} setState={setState} />;
       default: return null;
     }
   };
