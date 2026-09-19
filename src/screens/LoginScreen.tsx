@@ -342,7 +342,7 @@ export default function LoginScreen({ state, setState }: Props) {
           </div>
 
           <button
-            onClick={() => setState({ ...state, screen: role === "instructor" ? "instructor-home" : role === "auditor" ? "auditor-home" : "student-dashboard", courseId: role === "instructor" || role === "auditor" ? "CS301" : state.courseId })}
+            onClick={() => setState({ ...state, screen: role === "instructor" ? "instructor-home" : role === "auditor" ? "auditor-home" : role === "admin" ? "admin-health" : "student-dashboard", courseId: role === "instructor" || role === "auditor" ? "CS301" : state.courseId })}
             className="genai-cta"
             style={{
               width: "100%", padding: "12px 0", borderRadius: 10,

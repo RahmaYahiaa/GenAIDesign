@@ -5,13 +5,15 @@ import { PillTabs, BackCircle, bFontFor, hFontFor } from "../../components/Modul
 import { IconWarning } from "../../components/Icons";
 import { approvedMaterials } from "../../data/instructorModule";
 import AssignmentsTab from "./AssignmentsTab";
+import MaterialsTab from "./MaterialsTab";
 import CourseAnalyticsTab from "./CourseAnalyticsTab";
 import AuditTrailTab from "./AuditTrailTab";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Course Workspace shell — reference d3/d6/d7: circular back button, course
-// title header, and exactly three segmented pill tabs. No overview tab: the
-// course view starts at its assignments.
+// title header, and four segmented pill tabs (Assignments · Materials ·
+// Analytics · Audit). Reached only from the course cards — it has no
+// sidebar entry.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CourseWorkspaceScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
@@ -24,7 +26,7 @@ export default function CourseWorkspaceScreen({ state, setState }: { state: AppS
 
   const courseId = state.courseId ?? "CS301";
   const course = mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
-  const tab: WorkspaceTab = state.tab === "analytics" || state.tab === "audit" ? state.tab : "assignments";
+  const tab: WorkspaceTab = state.tab === "materials" || state.tab === "analytics" || state.tab === "audit" ? state.tab : "assignments";
   const coverageGaps = course.topics.filter((t) => approvedMaterials(t) === 0).length;
   const setTab = (t: WorkspaceTab) => setState({ ...state, tab: t });
 
@@ -57,6 +59,7 @@ export default function CourseWorkspaceScreen({ state, setState }: { state: AppS
         onSelect={(id) => setTab(id as WorkspaceTab)}
         tabs={[
           { id: "assignments", label: lang === "ar" ? "التكليفات" : "Assignments" },
+          { id: "materials", label: lang === "ar" ? "المواد" : "Materials" },
           { id: "analytics", label: lang === "ar" ? "التحليلات" : "Analytics" },
           { id: "audit", label: lang === "ar" ? "سجل التدقيق" : "Audit Trail" },
         ]}
@@ -64,6 +67,7 @@ export default function CourseWorkspaceScreen({ state, setState }: { state: AppS
 
       <div style={{ marginTop: 24 }}>
         {tab === "assignments" && <AssignmentsTab state={state} setState={setState} courseId={course.id} />}
+        {tab === "materials" && <MaterialsTab state={state} setState={setState} courseId={course.id} />}
         {tab === "analytics" && <CourseAnalyticsTab state={state} setState={setState} courseId={course.id} />}
         {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
       </div>

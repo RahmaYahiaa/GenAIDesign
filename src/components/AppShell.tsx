@@ -4,18 +4,22 @@ import {
   IconLogoBrand, IconDashboard, IconCourses, IconMastery, IconTutor,
   IconDiagnostic, IconPractice, IconReassessment, IconProfile,
   IconSun, IconMoon, IconGlobe, IconBell, IconSignOut,
-  IconClipboard, IconUsers, IconSparkle, IconShield,
+  IconClipboard, IconUsers, IconSparkle, IconShield, IconUpload,
+  IconInbox, IconAnchor, IconGear, IconHistory, IconTrendUp, IconBookOpen,
 } from "./Icons";
 
-export type WorkspaceTab = "assignments" | "analytics" | "audit";
+export type WorkspaceTab = "assignments" | "materials" | "analytics" | "audit";
 
 type Screen =
   | "student-dashboard" | "courses" | "mastery" | "tutor"
   | "diagnostic" | "practice" | "reassessment" | "profile"
-  | "student-assignments" | "student-assignment"
+  | "student-assignments" | "student-assignment" | "student-browse-courses"
   | "instructor-home" | "course-workspace" | "assignment-create"
   | "assignment-review" | "instructor" | "content-studio" | "students"
-  | "auditor-home";
+  | "auditor-home"
+  | "admin-health" | "admin-users" | "admin-officers" | "admin-bulk-import"
+  | "admin-requests" | "admin-link-accounts" | "admin-settings"
+  | "admin-audit" | "admin-analytics";
 
 export type { Screen };
 
@@ -44,6 +48,7 @@ export type { AppState };
 const STUDENT_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "student-dashboard", labelEn: "Dashboard", labelAr: "لوحة التحكم", Icon: IconDashboard },
   { id: "courses", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
+  { id: "student-browse-courses", labelEn: "Browse Courses", labelAr: "استعرض المقررات", Icon: IconBookOpen },
   // Institutional-only (FR-SCOPE-03) — filtered out for personal-only accounts.
   { id: "student-assignments", labelEn: "Assignments", labelAr: "التكليفات", Icon: IconClipboard },
   { id: "mastery", labelEn: "Topics & Mastery", labelAr: "المواضيع والإتقان", Icon: IconMastery },
@@ -59,7 +64,6 @@ const STUDENT_NAV_BOTTOM: { id: Screen; labelEn: string; labelAr: string; Icon: 
 
 const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "instructor-home", labelEn: "My Courses", labelAr: "مقرراتي", Icon: IconCourses },
-  { id: "course-workspace", labelEn: "Workspace", labelAr: "مساحة العمل", Icon: IconClipboard },
   { id: "students", labelEn: "Students", labelAr: "الطلاب", Icon: IconUsers },
   { id: "content-studio", labelEn: "Content Studio", labelAr: "استوديو المحتوى", Icon: IconSparkle },
   { id: "instructor", labelEn: "Legacy Analytics", labelAr: "التحليلات القديمة", Icon: IconDashboard },
@@ -67,6 +71,18 @@ const INSTRUCTOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: Reac
 
 const AUDITOR_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
   { id: "auditor-home", labelEn: "Audit Oversight", labelAr: "الرقابة والتدقيق", Icon: IconShield },
+];
+
+const ADMIN_NAV: { id: Screen; labelEn: string; labelAr: string; Icon: React.ComponentType<{ size?: number; color?: string }> }[] = [
+  { id: "admin-health", labelEn: "Institution Health", labelAr: "صحة المؤسسة", Icon: IconShield },
+  { id: "admin-users", labelEn: "Users", labelAr: "المستخدمون", Icon: IconUsers },
+  { id: "admin-officers", labelEn: "Officers & Permissions", labelAr: "المسؤولون والصلاحيات", Icon: IconProfile },
+  { id: "admin-bulk-import", labelEn: "Bulk Invitations", labelAr: "الإدخال الجماعي", Icon: IconUpload },
+  { id: "admin-requests", labelEn: "Out-of-Year Requests", labelAr: "طلبات خارج السنة", Icon: IconInbox },
+  { id: "admin-link-accounts", labelEn: "Account Linking", labelAr: "ربط الحسابات", Icon: IconAnchor },
+  { id: "admin-settings", labelEn: "Settings", labelAr: "الإعدادات", Icon: IconGear },
+  { id: "admin-audit", labelEn: "Audit Log", labelAr: "سجل التدقيق", Icon: IconHistory },
+  { id: "admin-analytics", labelEn: "Analytics", labelAr: "التحليلات", Icon: IconTrendUp },
 ];
 
 /** Sub-screens that should keep their parent nav item highlighted. */
@@ -80,7 +96,7 @@ interface AppShellProps {
   state: AppState;
   setState: (s: AppState) => void;
   children: React.ReactNode;
-  role?: "student" | "instructor" | "auditor";
+  role?: "student" | "instructor" | "auditor" | "admin";
 }
 
 function Tooltip({ label, children, side = "right" }: { label: string; children: React.ReactNode; side?: "right" | "left" }) {
@@ -134,7 +150,7 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
   const cardBorder = T.cardBorder;
   const topbarBg = dark ? "rgba(10,14,35,0.95)" : "rgba(244,246,249,0.95)";
 
-  const baseNav = role === "auditor" ? AUDITOR_NAV : role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
+  const baseNav = role === "admin" ? ADMIN_NAV : role === "auditor" ? AUDITOR_NAV : role === "student" ? STUDENT_NAV : INSTRUCTOR_NAV;
   // FR-SCOPE-03 — a personal-only account sees no assignment affordance at all.
   const nav = role === "student" && state.personalOnly
     ? baseNav.filter((i) => i.id !== "student-assignments")
@@ -283,7 +299,7 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               textAlign: isRtl ? "right" : "left",
             }}
           >
-            {lang === "ar" ? (role === "student" ? "طالب" : role === "auditor" ? "مدقق" : "مدرس") : role === "student" ? "STUDENT" : role === "auditor" ? "AUDITOR" : "INSTRUCTOR"}
+            {lang === "ar" ? (role === "student" ? "طالب" : role === "auditor" ? "مدقق" : role === "admin" ? "إدارة المؤسسة" : "مدرس") : role === "student" ? "STUDENT" : role === "auditor" ? "AUDITOR" : role === "admin" ? "INSTITUTION ADMIN" : "INSTRUCTOR"}
           </div>
         </div>
 
@@ -334,18 +350,20 @@ export function AppShell({ state, setState, children, role = "student" }: AppShe
               flexShrink: 0,
             }}
           >
-            {role === "instructor" ? "NM" : role === "auditor" ? "HZ" : "SA"}
+            {role === "instructor" ? "NM" : role === "auditor" ? "HZ" : role === "admin" ? "MA" : "SA"}
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: textPrimary, fontFamily: isRtl ? "'Cairo', sans-serif" : "'Inter', sans-serif", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {role === "auditor"
                 ? (lang === "ar" ? "د. هالة زيدان — ضمان الجودة" : "Dr. Hala Zaydan — Quality Assurance")
+                : role === "admin"
+                ? (lang === "ar" ? "منى عبد الرحمن — سوبر أدمن" : "Mona Abdelrahman — Super Admin")
                 : role === "instructor"
                 ? (lang === "ar" ? "أ.د. نادية المانع" : "Prof. Dr. Nadia Al-Manea")
                 : (lang === "ar" ? "سارة الراشدي" : "Sarah Al-Rashidi")}
             </div>
             <div style={{ fontSize: 10, color: textMuted, fontFamily: MONO }}>
-              {role === "auditor" ? (lang === "ar" ? "إشراف · كل المقررات المؤسسية" : "Oversight · all institutional courses") : role === "instructor" ? "CS301 · CS401 · CS303" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS401"}
+              {role === "auditor" ? (lang === "ar" ? "إشراف · كل المقررات المؤسسية" : "Oversight · all institutional courses") : role === "admin" ? (lang === "ar" ? "جامعة المنوفية" : "Menoufia University") : role === "instructor" ? "CS301 · CS401 · CS303" : state.personalOnly ? "LIN101 · personal" : "CS301 · CS401"}
             </div>
           </div>
         </div>

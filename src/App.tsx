@@ -17,7 +17,18 @@ import StudentsScreen from "./screens/instructor/StudentsScreen";
 import AuditorHomeScreen from "./screens/instructor/AuditorHomeScreen";
 import StudentAssignmentsScreen from "./screens/student/StudentAssignmentsScreen";
 import StudentAssignmentScreen from "./screens/student/StudentAssignmentScreen";
+import AdminHealthScreen from "./screens/admin/AdminHealthScreen";
+import AdminUsersScreen from "./screens/admin/AdminUsersScreen";
+import AdminOfficersScreen from "./screens/admin/AdminOfficersScreen";
+import AdminBulkImportScreen from "./screens/admin/AdminBulkImportScreen";
+import AdminRequestsScreen from "./screens/admin/AdminRequestsScreen";
+import AdminLinkAccountsScreen from "./screens/admin/AdminLinkAccountsScreen";
+import AdminSettingsScreen from "./screens/admin/AdminSettingsScreen";
+import AdminAuditScreen from "./screens/admin/AdminAuditScreen";
+import AdminAnalyticsScreen from "./screens/admin/AdminAnalyticsScreen";
+import StudentBrowseCoursesScreen from "./screens/student/StudentBrowseCoursesScreen";
 import { InstructorModuleProvider } from "./store/InstructorStore";
+import { AdminStoreProvider } from "./store/AdminStore";
 import { tk, MONO } from "./tokens";
 import { EmptyState } from "./components/SharedUI";
 import { IconCourses, IconProfile } from "./components/Icons";
@@ -30,6 +41,9 @@ const INSTRUCTOR_SCREENS = [
 
 /** Screens rendered inside the read-only auditor shell. */
 const AUDITOR_SCREENS = ["auditor-home"] as const;
+
+/** Screens rendered inside the institution admin shell. */
+const ADMIN_SCREENS = ["admin-health", "admin-users", "admin-officers", "admin-bulk-import", "admin-requests", "admin-link-accounts", "admin-settings", "admin-audit", "admin-analytics"] as const;
 
 // ─── Register Screen ──────────────────────────────────────────────────────────
 function RegisterScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
@@ -307,6 +321,7 @@ export default function App() {
   const isAuth = state.screen === "login" || state.screen === "register";
   const isInstructor = (INSTRUCTOR_SCREENS as readonly string[]).includes(state.screen);
   const isAuditor = (AUDITOR_SCREENS as readonly string[]).includes(state.screen);
+  const isAdmin = (ADMIN_SCREENS as readonly string[]).includes(state.screen);
 
   const renderScreen = () => {
     switch (state.screen) {
@@ -322,6 +337,7 @@ export default function App() {
       case "profile": return <ProfileScreen state={state} setState={setState} />;
       case "student-assignments": return <StudentAssignmentsScreen state={state} setState={setState} />;
       case "student-assignment": return <StudentAssignmentScreen state={state} setState={setState} />;
+      case "student-browse-courses": return <StudentBrowseCoursesScreen state={state} setState={setState} />;
       case "instructor-home": return <InstructorHomeScreen state={state} setState={setState} />;
       case "course-workspace": return <CourseWorkspaceScreen state={state} setState={setState} />;
       case "assignment-create": return <AssignmentCreateScreen state={state} setState={setState} />;
@@ -330,6 +346,15 @@ export default function App() {
       case "content-studio": return <ContentStudioScreen state={state} setState={setState} />;
       case "students": return <StudentsScreen state={state} setState={setState} />;
       case "auditor-home": return <AuditorHomeScreen state={state} setState={setState} />;
+      case "admin-health": return <AdminHealthScreen state={state} setState={setState} />;
+      case "admin-users": return <AdminUsersScreen state={state} setState={setState} />;
+      case "admin-officers": return <AdminOfficersScreen state={state} setState={setState} />;
+      case "admin-bulk-import": return <AdminBulkImportScreen state={state} setState={setState} />;
+      case "admin-requests": return <AdminRequestsScreen state={state} setState={setState} />;
+      case "admin-link-accounts": return <AdminLinkAccountsScreen state={state} setState={setState} />;
+      case "admin-settings": return <AdminSettingsScreen state={state} setState={setState} />;
+      case "admin-audit": return <AdminAuditScreen state={state} setState={setState} />;
+      case "admin-analytics": return <AdminAnalyticsScreen state={state} setState={setState} />;
       default: return null;
     }
   };
@@ -346,9 +371,11 @@ export default function App() {
 
   return (
     <InstructorModuleProvider>
-      <AppShell state={state} setState={setState} role={isAuditor ? "auditor" : isInstructor ? "instructor" : "student"}>
-        {renderScreen()}
-      </AppShell>
+      <AdminStoreProvider>
+        <AppShell state={state} setState={setState} role={isAdmin ? "admin" : isAuditor ? "auditor" : isInstructor ? "instructor" : "student"}>
+          {renderScreen()}
+        </AppShell>
+      </AdminStoreProvider>
     </InstructorModuleProvider>
   );
 }

@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { AppState } from "../../components/AppShell";
 import { tk, MONO } from "../../tokens";
 import { useInstructorModule } from "../../store/InstructorStore";
-import { bFontFor, hFontFor } from "../../components/ModuleUI";
-import { IconWarning, IconClipboard } from "../../components/Icons";
+import { useAdminModule } from "../../store/AdminStore";
+import { bFontFor, hFontFor, Modal, Field, Btn, inputStyle, toast } from "../../components/ModuleUI";
+import { IconWarning, IconClipboard, IconPlus, IconCheck } from "../../components/Icons";
 import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS } from "../../data/instructorModule";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -13,6 +15,16 @@ import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS
 
 export default function InstructorHomeScreen({ state, setState }: { state: AppState; setState: (s: AppState) => void }) {
   const { state: mod } = useInstructorModule();
+  // FR-ADM-08 lever — the institution gates whether doctors may create
+  // course shells at all; the affordance below appears only when allowed.
+  const { state: adminMod } = useAdminModule();
+  const canCreate = adminMod.settings.allowDoctorCourseCreation;
+  const [createOpen, setCreateOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [titleEn, setTitleEn] = useState("");
+  const [titleAr, setTitleAr] = useState("");
+  const [year, setYear] = useState("3");
+  const [extras, setExtras] = useState<{ code: string; titleEn: string; titleAr: string; year: number }[]>([]);
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
@@ -181,7 +193,120 @@ export default function InstructorHomeScreen({ state, setState }: { state: AppSt
             </button>
           </div>
         ))}
+
+        {/* Courses the doctor provisioned himself (FR-ADM-08 lever ON) */}
+        {extras.map((extra) => (
+          <div
+            key={extra.code}
+            style={{
+              background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12,
+              padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: tokens.primary, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "3px 9px" }}>
+                {extra.code}
+              </span>
+              <span style={{ fontFamily: bFont, fontSize: 11, fontWeight: 600, color: tokens.textFaint }}>
+                {lang === "ar" ? "جديد · 0 طالب" : "New · 0 students"}
+              </span>
+            </div>
+            <div style={{ textAlign: isRtl ? "right" : "left" }}>
+              <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 3 }}>
+                {lang === "ar" ? extra.titleAr : extra.titleEn}
+              </div>
+              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
+                {lang === "ar" ? `السنة ${extra.year} · أنشأته بنفسك` : `Year ${extra.year} · provisioned by you`}
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: bFont, fontSize: 12, color: tokens.gap, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <IconWarning size={13} color={tokens.gap} />
+              {lang === "ar" ? "بلا مواد بعد — يظهر لدى الإدارة كمقرر عارٍ" : "No materials yet — the admin sees it as a bare course"}
+            </div>
+            <button
+              onClick={() => setState({ ...state, screen: "content-studio", courseId: extra.code })}
+              style={{
+                marginTop: "auto", width: "100%", padding: "9px 0", borderRadius: 8,
+                border: `1px solid ${tokens.cardBorder}`, background: tokens.inset,
+                color: tokens.textSecondary, fontFamily: bFont, fontWeight: 600, fontSize: 12.5, cursor: "pointer",
+              }}
+            >
+              {lang === "ar" ? "ارفع مواده من الاستوديو" : "Upload materials in the Studio"}
+            </button>
+          </div>
+        ))}
+
+        {/* The lever's affordance — only rendered while the institution allows it */}
+        {canCreate && (
+          <button
+            onClick={() => { setCode(""); setTitleEn(""); setTitleAr(""); setYear("3"); setCreateOpen(true); }}
+            style={{
+              minHeight: 170, borderRadius: 12, cursor: "pointer",
+              border: `1.5px dashed ${tokens.cardBorder}`, background: "transparent",
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 18,
+            }}
+          >
+            <span style={{ display: "inline-flex", width: 40, height: 40, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, alignItems: "center", justifyContent: "center" }}>
+              <IconPlus size={18} color={tokens.primary} />
+            </span>
+            <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>
+              {lang === "ar" ? "مقرر جديد" : "New course"}
+            </span>
+            <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, lineHeight: 1.6, maxWidth: 220 }}>
+              {lang === "ar" ? "مؤسستك تسمح لك بإنشاء مقررات داخل قسمك — تظهر للإدارة فور إنشائها." : "Your institution lets doctors create course shells — the admin sees each one the moment it exists."}
+            </span>
+          </button>
+        )}
       </div>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        tokens={tokens}
+        lang={lang}
+        title={lang === "ar" ? "إنشاء مقرر جديد" : "Create a new course"}
+        subtitle={lang === "ar" ? "هيكل مقرر داخل قسمك — المواد تُرفع لاحقًا من استوديو المحتوى." : "A course shell inside your department — materials are uploaded from Content Studio afterwards."}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <Field tokens={tokens} lang={lang} label={lang === "ar" ? "كود المقرر" : "Course code"} required>
+              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} style={{ ...inputStyle(tokens, bFont), direction: "ltr", textAlign: "left" }} placeholder="CS310" />
+            </Field>
+            <Field tokens={tokens} lang={lang} label={lang === "ar" ? "السنة" : "Year"} required>
+              <select value={year} onChange={(e) => setYear(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer" }}>
+                {[1, 2, 3, 4].map((y) => <option key={y} value={y}>{lang === "ar" ? `السنة ${y}` : `Year ${y}`}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Field tokens={tokens} lang={lang} label={lang === "ar" ? "الاسم (إنجليزي)" : "Title (English)"} required>
+            <input value={titleEn} onChange={(e) => setTitleEn(e.target.value)} style={{ ...inputStyle(tokens, bFont) }} placeholder="Mobile Application Development" />
+          </Field>
+          <Field tokens={tokens} lang={lang} label={lang === "ar" ? "الاسم (عربي)" : "Title (Arabic)"} required>
+            <input value={titleAr} onChange={(e) => setTitleAr(e.target.value)} style={{ ...inputStyle(tokens, bFont) }} placeholder="تطوير تطبيقات المحمول" />
+          </Field>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <IconCheck size={12} color={tokens.textFaint} />
+            <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
+              {lang === "ar"
+                ? "المقرر الجديد يظهر في تحليلات المؤسسة كمقرر بلا مواد حتى ترفع أول محتوى معتمد."
+                : "The new shell shows up in institution analytics as a course without materials until your first approved upload."}
+            </span>
+          </div>
+          <Btn
+            tokens={tokens}
+            lang={lang}
+            disabled={!(code.trim() && titleEn.trim() && titleAr.trim())}
+            style={{ width: "100%", padding: "11px 0", fontSize: 13.5, justifyContent: "center" }}
+            onClick={() => {
+              setExtras((prev) => [...prev, { code: code.trim().toUpperCase(), titleEn: titleEn.trim(), titleAr: titleAr.trim(), year: Number(year) }]);
+              setCreateOpen(false);
+              toast(lang === "ar" ? "أُنشئ المقرر — يظهر لدى الإدارة الآن بانتظار مواده الأولى." : "Course created — the institution already sees it, waiting for its first materials.");
+            }}
+          >
+            {lang === "ar" ? "إنشاء المقرر" : "Create course"}
+          </Btn>
+        </div>
+      </Modal>
     </div>
   );
 }
